@@ -212,6 +212,57 @@ def build_model(form) -> GlobalOptimization:
 	return model
 
 
+# ---------------------------------------------------------------------------
+# Esquema gráfico da UHR (modal em result.html)
+# Combina a geometria de configuração (comprimento/inclinação/ângulo) com os
+# SegmentState calculados (diâmetro/área/velocidade/perda/cota), na mesma
+# ordem de avaliação do circuito, e consolida as cotas de referência.
+# ---------------------------------------------------------------------------
+
+def build_scheme_payload(model: GlobalOptimization, state) -> tuple[list, dict]:
+	"""Monta ``(segments, levels)`` para o desenho do circuito hidráulico.
+
+	``evaluation_order()`` e ``state.segment_states`` são gerados na mesma
+	sequência (tomada d'água → ANTES → DEPOIS → tomada d'água), portanto são
+	combinados por índice. ``length``/``slope``/``angle``/``kind`` vêm das
+	dataclasses de configuração; os demais campos, do ``SegmentState``.
+	"""
+	order = model.circuit.evaluation_order()
+	segments: list[dict] = []
+	for entry, ss in zip(order, state.segment_states):
+		cfg = entry.get("segment")
+		is_pipe_cfg = isinstance(cfg, PipeSegment)
+		is_diverse_cfg = isinstance(cfg, DiverseSegment)
+		segments.append({
+			"name": ss.name,
+			"segment_type": ss.segment_type,
+			"position": ss.position.value,
+			"material": ss.material,
+			"is_pipe": ss.is_pipe,
+			"pipe_type": ss.pipe_type,
+			"diameter": ss.diameter,
+			"area": ss.area,
+			"velocity": ss.velocity,
+			"head_loss": ss.head_loss,
+			"cota": ss.cota,
+			"length": cfg.length if is_pipe_cfg else None,
+			"slope": cfg.slope if is_pipe_cfg else None,
+			"angle": cfg.angle if is_diverse_cfg else None,
+			"kind": cfg.kind.value if is_diverse_cfg else None,
+		})
+
+	levels = {
+		"cota_max_sup": state.cota_max_sup,
+		"cota_min_sup": state.cota_min_sup,
+		"cota_tomada": state.cota_tomada,
+		"cota_max_inf": state.cota_max_inf,
+		"cota_min_inf": state.cota_min_inf,
+		"cota_e": state.cota_e,
+		"cota_powerhouse": model.COTA_POWERHOUSE,
+	}
+	return segments, levels
+
+
 @app.route("/")
 def index():
 	return render_template("index.html",
@@ -243,12 +294,18 @@ def solve():
 		decision.append((f"Diâmetro {ps.name}", ps.diameter, "m"))
 	decision.append(("Horas de bombeamento/dia", result.state.hours_pump, "h"))
 
+	# Esquema gráfico (modal): geometria dos segmentos + cotas de referência
+	scheme_segments, scheme_levels = build_scheme_payload(model, result.state)
+
 	return render_template("result.html",
 						   result=result,
 						   state=result.state,
 						   report=report,
 						   costs=costs,
-						   decision=decision)
+						   decision=decision,
+						   scheme_segments_json=json.dumps(
+							   scheme_segments, ensure_ascii=False),
+						   scheme_levels_json=json.dumps(scheme_levels))
 
 
 if __name__ == "__main__":
