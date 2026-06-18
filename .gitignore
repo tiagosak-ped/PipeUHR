@@ -1,0 +1,5 @@
+# Ignorar configurações locais do Visual Studio (.vs)
+.vs/
+
+# Ignorar fluxos de trabalho e configurações do GitHub (.github)
+.github/

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-br" data-theme="winter">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PipeUHR{% endblock %}</title>
+
+  <!-- Tailwind CSS + DaisyUI (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.23/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <!-- Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+    .font-mono-data {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col bg-base-100 text-base-content font-sans text-sm antialiased">
+
+  <!-- Navbar -->
+  <header class="navbar bg-base-200 border-b border-base-300 px-4 lg:px-8 h-14 min-h-0">
+    <div class="flex-1 gap-2">
+      <a href="{{ url_for('index') }}" class="flex items-center gap-2 font-semibold text-base hover:opacity-80 transition-opacity">
+        <i data-lucide="waves" class="w-5 h-5 text-primary"></i>
+        <span>PipeUHR</span>
+      </a>
+      <span class="hidden sm:inline-block text-xs text-base-content/50 ml-2">
+        Otimização de Usina Hidrelétrica Reversível
+      </span>
+    </div>
+    <div class="flex-none">
+      <button id="themeToggle" class="btn btn-ghost btn-sm btn-square" aria-label="Alternar tema">
+        <i data-lucide="sun" class="w-4 h-4 hidden dark-icon"></i>
+        <i data-lucide="moon" class="w-4 h-4 light-icon"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-base-300 py-4 text-center text-xs text-base-content/40">
+    PipeUHR &mdash; P&amp;D: migração da planilha para Python (NumPy + SciPy + Flask)
+  </footer>
+
+  <!-- Theme Toggle Script -->
+  <script>
+    (() => {
+      const html = document.documentElement;
+      const toggle = document.getElementById('themeToggle');
+      const LIGHT = 'winter';
+      const DARK = 'business';
+
+      function getPreferred() {
+        const stored = localStorage.getItem('pipeuhr-theme');
+        if (stored) return stored;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? DARK : LIGHT;
+      }
+
+      function applyTheme(theme) {
+        html.setAttribute('data-theme', theme);
+        localStorage.setItem('pipeuhr-theme', theme);
+        updateIcons(theme);
+      }
+
+      function updateIcons(theme) {
+        const darkIcon = toggle.querySelector('.dark-icon');
+        const lightIcon = toggle.querySelector('.light-icon');
+        if (theme === DARK) {
+          darkIcon.classList.remove('hidden');
+          lightIcon.classList.add('hidden');
+        } else {
+          darkIcon.classList.add('hidden');
+          lightIcon.classList.remove('hidden');
+        }
+      }
+
+      applyTheme(getPreferred());
+
+      toggle.addEventListener('click', () => {
+        const current = html.getAttribute('data-theme');
+        applyTheme(current === DARK ? LIGHT : DARK);
+      });
+    })();
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}PipeUHR — Resultado{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-semibold">Resultado da otimização</h1>
+  <a href="{{ url_for('index') }}" class="btn btn-ghost btn-sm gap-1">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    Novos dados
+  </a>
+</div>
+
+<!-- Status Banner -->
+{% if result.success and report.all_satisfied %}
+<div class="alert alert-success mb-6">
+  <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+  <span>Otimização convergiu e <span class="font-semibold">todas as restrições foram atendidas</span>.</span>
+</div>
+{% elif result.success %}
+<div class="alert alert-warning mb-6">
+  <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+  <span>Solver convergiu, mas há
+    <span class="font-semibold">{{ report.n_violations }} restrição(ões) violada(s)</span>.</span>
+</div>
+{% else %}
+<div class="alert alert-error mb-6">
+  <i data-lucide="x-circle" class="w-5 h-5"></i>
+  <span>O solver não convergiu: {{ result.message }}</span>
+</div>
+{% endif %}
+
+<!-- Key Metrics -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="rounded-lg border border-primary/20 bg-primary/5 p-5">
+    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Custo total (CT)</p>
+    <p class="text-3xl font-semibold font-mono-data text-primary">{{ state.cost_total|fmt_br(1) }}</p>
+    <p class="text-xs text-base-content/40 mt-1">milhões R$ — jan/26</p>
+  </div>
+  <div class="rounded-lg border border-base-300 p-5">
+    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Potência turbina/máquina</p>
+    <p class="text-3xl font-semibold font-mono-data">{{ state.power_turbine|fmt_br(1) }}</p>
+    <p class="text-xs text-base-content/40 mt-1">MW (relação Pt/Pb {{ state.power_ratio|fmt_br(3) }})</p>
+  </div>
+  <div class="rounded-lg border border-base-300 p-5">
+    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Iterações do solver</p>
+    <p class="text-3xl font-semibold font-mono-data">{{ result.iterations }}</p>
+    <p class="text-xs text-base-content/40 mt-1">{{ result.message }}</p>
+  </div>
+</div>
+
+<!-- Decision Variables & Cost Breakdown -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <!-- Decision Variables -->
+  <div class="rounded-lg border border-base-300 overflow-hidden">
+    <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+      <i data-lucide="settings-2" class="w-4 h-4 text-base-content/50"></i>
+      <span class="font-medium text-sm">Variáveis de decisão otimizadas</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra table-sm w-full">
+        <tbody>
+          {% for label, value, unit in decision %}
+          <tr>
+            <td class="text-sm">{{ label }}</td>
+            <td class="text-right font-mono-data">{{ value|fmt_br(3) }}</td>
+            <td class="text-right text-base-content/40 text-xs font-mono-data">{{ unit }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Costs -->
+  <div class="rounded-lg border border-base-300 overflow-hidden">
+    <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+      <i data-lucide="banknote" class="w-4 h-4 text-base-content/50"></i>
+      <span class="font-medium text-sm">Composição de custos (milhões R$)</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra table-sm w-full">
+        <tbody>
+          {% for label, value in costs %}
+          <tr>
+            <td class="text-sm">{{ label }}</td>
+            <td class="text-right font-mono-data">{{ value|fmt_br(2) }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="bg-primary/5 font-semibold">
+            <td class="text-sm">CT — Custo total</td>
+            <td class="text-right font-mono-data text-primary">{{ state.cost_total|fmt_br(2) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Segment Results -->
+<div class="rounded-lg border border-base-300 overflow-hidden mb-6">
+  <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+    <i data-lucide="git-branch" class="w-4 h-4 text-base-content/50"></i>
+    <span class="font-medium text-sm">Resultados por segmento</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="table table-zebra table-sm w-full">
+      <thead>
+        <tr class="text-xs uppercase tracking-wider text-base-content/50">
+          <th>Segmento</th>
+          <th>Tipo</th>
+          <th>Posição</th>
+          <th>Material</th>
+          <th class="text-right">D (m)</th>
+          <th class="text-right">Área (m²)</th>
+          <th class="text-right">V (m/s)</th>
+          <th class="text-right">Perda (m)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ss in state.segment_states %}
+        <tr>
+          <td class="text-sm">{{ ss.name }}</td>
+          <td>
+            {% if ss.is_pipe %}
+            <span class="badge badge-info badge-xs">Tubo</span>
+            {% elif ss.segment_type == 'auto' %}
+            <span class="badge badge-ghost badge-xs">Auto</span>
+            {% else %}
+            <span class="badge badge-warning badge-xs">Diverso</span>
+            {% endif %}
+          </td>
+          <td class="text-sm">{{ ss.position.value }}</td>
+          <td class="text-sm">{{ ss.material }}</td>
+          <td class="text-right font-mono-data">{{ ss.diameter|fmt_br(3) }}</td>
+          <td class="text-right font-mono-data">{{ ss.area|fmt_br(3) }}</td>
+          <td class="text-right font-mono-data">{{ ss.velocity|fmt_br(3) }}</td>
+          <td class="text-right font-mono-data">{{ ss.head_loss|fmt_br(4) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="bg-base-200/50 font-semibold">
+          <td class="text-sm" colspan="7">Perda total</td>
+          <td class="text-right font-mono-data">{{ state.head_loss_total|fmt_br(4) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Constraint Verification -->
+<div class="rounded-lg border border-base-300 overflow-hidden">
+  <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <i data-lucide="clipboard-check" class="w-4 h-4 text-base-content/50"></i>
+      <span class="font-medium text-sm">Verificação das restrições</span>
+    </div>
+    <span class="badge {{ 'badge-success' if report.all_satisfied else 'badge-error' }} badge-sm font-mono-data">
+      {{ report.checks|length - report.n_violations }}/{{ report.checks|length }} OK
+    </span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="table table-zebra table-sm w-full">
+      <thead>
+        <tr class="text-xs uppercase tracking-wider text-base-content/50">
+          <th>Restrição</th>
+          <th class="text-right">Valor</th>
+          <th class="text-center">Op.</th>
+          <th class="text-right">Limite</th>
+          <th class="text-right">Folga</th>
+          <th class="text-center">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in report.checks %}
+        <tr class="{{ '' if c.satisfied else 'bg-error/5' }}">
+          <td class="text-sm">{{ c.name }}</td>
+          <td class="text-right font-mono-data">{{ c.value|fmt_br(4) }} <span class="text-base-content/40">{{ c.unit }}</span></td>
+          <td class="text-center text-base-content/40 font-mono-data">{{ c.operator }}</td>
+          <td class="text-right font-mono-data">{{ c.limit|fmt_br(4) }}</td>
+          <td class="text-right font-mono-data {{ 'text-success' if c.slack >= 0 else 'text-error' }}">
+            {{ c.slack|fmt_br_signed(4) }}
+          </td>
+          <td class="text-center">
+            {% if c.satisfied %}
+            <span class="badge badge-success badge-xs gap-0.5">
+              <i data-lucide="check" class="w-2.5 h-2.5"></i> OK
+            </span>
+            {% else %}
+            <span class="badge badge-error badge-xs gap-0.5">
+              <i data-lucide="x" class="w-2.5 h-2.5"></i> Falhou
+            </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  lucide.createIcons();
+</script>
+{% endblock %}

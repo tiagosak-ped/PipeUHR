@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+{% block title %}PipeUHR — Entrada de dados{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-semibold">Parâmetros do projeto</h1>
+  <button type="reset" form="paramsForm" class="btn btn-ghost btn-sm gap-1">
+    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+    Restaurar padrão
+  </button>
+</div>
+
+<p class="text-base-content/60 text-sm mb-6 max-w-prose">
+  Informe os dados do projeto e clique em <span class="font-medium text-base-content">Otimizar</span>. O solver
+  (SciPy SLSQP) minimizará o custo total da UHR respeitando as restrições.
+</p>
+
+<form id="paramsForm" action="{{ url_for('solve') }}" method="post" novalidate>
+  {# ── Accordion de parâmetros escalares ── #}
+  <div class="space-y-px rounded-lg border border-base-300 overflow-hidden">
+    {% for group_name, fields in groups %}
+    {% set gid = loop.index %}
+    <div class="collapse collapse-arrow bg-base-100 border-b border-base-300 last:border-b-0">
+      <input type="radio" name="params-accordion" {% if loop.first %}checked="checked"{% endif %} />
+      <div class="collapse-title font-medium text-sm flex items-center gap-2 py-3 min-h-0">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4 text-primary/70"></i>
+        {{ group_name }}
+      </div>
+      <div class="collapse-content px-4 pb-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+          {% for attr, label, unit, step in fields %}
+          <div class="form-control w-full">
+            <label class="label py-1" for="{{ attr }}">
+              <span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">{{ label }}</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <input type="number" step="{{ step }}" inputmode="decimal"
+                     class="input input-bordered input-sm w-full font-mono-data focus:input-primary"
+                     id="{{ attr }}" name="{{ attr }}"
+                     value="{{ values[attr] }}" required>
+              <span class="text-xs text-base-content/40 font-mono-data whitespace-nowrap min-w-[2rem]">{{ unit }}</span>
+            </div>
+            <label class="label py-0.5 hidden" id="err-{{ attr }}">
+              <span class="label-text-alt text-error text-xs">Informe um valor válido.</span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {# ── Seção de segmentos do circuito hidráulico ── #}
+    <div class="collapse collapse-arrow bg-base-100 border-b border-base-300 last:border-b-0">
+      <input type="radio" name="params-accordion" />
+      <div class="collapse-title font-medium text-sm flex items-center gap-2 py-3 min-h-0">
+        <i data-lucide="git-branch" class="w-4 h-4 text-primary/70"></i>
+        Segmentos do Circuito Hidráulico
+      </div>
+      <div class="collapse-content px-4 pb-4">
+        <div class="pt-2">
+          <div class="overflow-x-auto">
+            <table class="table table-sm w-full" id="segmentsTable">
+              <thead>
+                <tr class="text-xs uppercase tracking-wider text-base-content/50">
+                  <th></th>
+                  <th>#</th>
+                  <th>Tipo</th>
+                  <th>Nome</th>
+                  <th>Posição</th>
+                  <th>Detalhes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="segmentsBody">
+                {# Rows are populated by JavaScript from segments_json #}
+              </tbody>
+            </table>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button type="button" class="btn btn-outline btn-sm gap-1" onclick="addPipeSegment()">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Adicionar Tubulação
+            </button>
+            <button type="button" class="btn btn-outline btn-sm gap-1" onclick="addDiverseSegment()">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Adicionar Segmento Diverso
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Hidden input para serializar segmentos no submit #}
+  <input type="hidden" name="segments_json" id="segmentsJsonInput" value="">
+
+  <div class="flex justify-end mt-6">
+    <button type="submit" class="btn btn-primary gap-2">
+      <span class="loading loading-spinner loading-sm hidden" id="spin"></span>
+      <i data-lucide="play" class="w-4 h-4" id="playIcon"></i>
+      Otimizar
+    </button>
+  </div>
+</form>
+
+{# ── Modal de edição: Tubulação ── #}
+<dialog id="pipeModal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg" id="pipeModalTitle">Adicionar Tubulação</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Nome</span></label>
+        <input type="text" id="pipeModalName" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Posição</span></label>
+        <select id="pipeModalPosition" class="select select-bordered select-sm w-full font-mono-data">
+          <option value="Antes">Antes</option>
+          <option value="Depois">Depois</option>
+        </select>
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Comprimento (m)</span></label>
+        <input type="number" step="0.1" inputmode="decimal" id="pipeModalLength" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Inclinação (º)</span></label>
+        <input type="number" step="0.01" inputmode="decimal" id="pipeModalSlope" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Material</span></label>
+        <select id="pipeModalMaterial" class="select select-bordered select-sm w-full font-mono-data">
+          <option value="Concreto">Concreto</option>
+          <option value="Aço">Aço</option>
+        </select>
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Tipo</span></label>
+        <select id="pipeModalType" class="select select-bordered select-sm w-full font-mono-data">
+          <option value="Baixa Pressão">Baixa Pressão</option>
+          <option value="Alta Pressão">Alta Pressão</option>
+          <option value="Sucção">Sucção</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('pipeModal').close()">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="savePipeModal()">Salvar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+{# ── Modal de edição: Segmento Diverso ── #}
+<dialog id="diverseModal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg" id="diverseModalTitle">Adicionar Segmento Diverso</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Nome</span></label>
+        <input type="text" id="diverseModalName" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Posição</span></label>
+        <select id="diverseModalPosition" class="select select-bordered select-sm w-full font-mono-data">
+          <option value="Antes">Antes</option>
+          <option value="Depois">Depois</option>
+        </select>
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Tipo</span></label>
+        <select id="diverseModalKind" class="select select-bordered select-sm w-full font-mono-data">
+          <option value="Curva">Curva</option>
+          <option value="Bifurcação">Bifurcação</option>
+        </select>
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Ângulo (°)</span></label>
+        <input type="number" step="1" inputmode="decimal" id="diverseModalAngle" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+      <div class="form-control w-full">
+        <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Diâmetro (m)</span></label>
+        <input type="number" step="0.01" inputmode="decimal" id="diverseModalDiameter" class="input input-bordered input-sm w-full font-mono-data">
+      </div>
+    </div>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('diverseModal').close()">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="saveDiverseModal()">Salvar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (() => {
+    // ── Segment data model ──
+    let segments = {{ segments_json|safe }};
+    let editingIndex = -1;
+
+    const MATERIALS = ["Concreto", "Aço"];
+    const PIPE_TYPES = ["Baixa Pressão", "Alta Pressão", "Sucção"];
+    const POSITIONS = ["Antes", "Depois"];
+    const DIVERSE_KINDS = ["Curva", "Bifurcação"];
+
+    let dragSrcIndex = null;
+
+    function renderSegments() {
+      const tbody = document.getElementById('segmentsBody');
+      tbody.innerHTML = '';
+      segments.forEach((seg, i) => {
+        const tr = document.createElement('tr');
+        tr.draggable = true;
+        tr.dataset.index = i;
+        tr.classList.add('hover');
+
+        const typeBadge = seg.type === 'pipe'
+          ? '<span class="badge badge-info badge-xs">Tubo</span>'
+          : '<span class="badge badge-warning badge-xs">Diverso</span>';
+        let details = '';
+        if (seg.type === 'pipe') {
+          details = `L=${seg.length}m, i=${seg.slope}%, ${seg.material}, ${seg.pipe_type}`;
+        } else {
+          details = seg.kind;
+          if (seg.angle) details += ` ${seg.angle}°`;
+          if (seg.diameter) details += `, D=${seg.diameter}m`;
+        }
+
+        tr.innerHTML = `
+          <td class="w-8 text-center cursor-grab active:cursor-grabbing">
+            <i data-lucide="grip-vertical" class="w-3.5 h-3.5 text-base-content/30"></i>
+          </td>
+          <td class="font-mono-data">${i + 1}</td>
+          <td>${typeBadge}</td>
+          <td class="font-mono-data">${seg.name}</td>
+          <td class="text-xs">${seg.position}</td>
+          <td class="text-xs text-base-content/60">${details}</td>
+          <td>
+            <div class="flex gap-0.5">
+              <button type="button" class="btn btn-ghost btn-xs" onclick="moveSegment(${i},-1)" ${i === 0 ? 'disabled' : ''} title="Mover acima">
+                <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs" onclick="moveSegment(${i},1)" ${i === segments.length - 1 ? 'disabled' : ''} title="Mover abaixo">
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs text-info" onclick="editSegment(${i})" title="Editar">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-xs text-error" onclick="removeSegment(${i})" title="Remover">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>`;
+
+        // ── Drag & drop ──
+        tr.addEventListener('dragstart', (e) => {
+          dragSrcIndex = i;
+          tr.classList.add('opacity-40');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        tr.addEventListener('dragend', () => {
+          tr.classList.remove('opacity-40');
+          dragSrcIndex = null;
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('border-t-2', 'border-primary'));
+        });
+        tr.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('border-t-2', 'border-primary'));
+          if (dragSrcIndex !== null && dragSrcIndex !== i) {
+            tr.classList.add('border-t-2', 'border-primary');
+          }
+        });
+        tr.addEventListener('drop', (e) => {
+          e.preventDefault();
+          if (dragSrcIndex !== null && dragSrcIndex !== i) {
+            const [moved] = segments.splice(dragSrcIndex, 1);
+            segments.splice(i, 0, moved);
+            renderSegments();
+          }
+        });
+
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    // ── Move segment up / down ──
+    window.moveSegment = function(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= segments.length) return;
+      [segments[idx], segments[newIdx]] = [segments[newIdx], segments[idx]];
+      renderSegments();
+    };
+
+    window.removeSegment = function(idx) {
+      segments.splice(idx, 1);
+      renderSegments();
+    };
+
+    // ── Pipe modal ──
+    window.addPipeSegment = function() {
+      editingIndex = -1;
+      document.getElementById('pipeModalName').value = 'Novo';
+      document.getElementById('pipeModalPosition').value = 'Antes';
+      document.getElementById('pipeModalLength').value = '100';
+      document.getElementById('pipeModalSlope').value = '1';
+      document.getElementById('pipeModalMaterial').value = 'Concreto';
+      document.getElementById('pipeModalType').value = 'Baixa Pressão';
+      document.getElementById('pipeModalTitle').textContent = 'Adicionar Tubulação';
+      document.getElementById('pipeModal').showModal();
+    };
+
+    window.savePipeModal = function() {
+      const data = {
+        type: 'pipe',
+        name: document.getElementById('pipeModalName').value,
+        position: document.getElementById('pipeModalPosition').value,
+        length: parseFloat(document.getElementById('pipeModalLength').value),
+        slope: parseFloat(document.getElementById('pipeModalSlope').value),
+        material: document.getElementById('pipeModalMaterial').value,
+        pipe_type: document.getElementById('pipeModalType').value,
+      };
+      if (editingIndex >= 0) {
+        segments[editingIndex] = data;
+      } else {
+        segments.push(data);
+      }
+      document.getElementById('pipeModal').close();
+      renderSegments();
+    };
+
+    // ── Diverse modal ──
+    window.addDiverseSegment = function() {
+      editingIndex = -1;
+      document.getElementById('diverseModalName').value = 'Nova peça';
+      document.getElementById('diverseModalPosition').value = 'Antes';
+      document.getElementById('diverseModalKind').value = 'Curva';
+      document.getElementById('diverseModalAngle').value = '45';
+      document.getElementById('diverseModalDiameter').value = '';
+      document.getElementById('diverseModalTitle').textContent = 'Adicionar Segmento Diverso';
+      document.getElementById('diverseModal').showModal();
+    };
+
+    window.saveDiverseModal = function() {
+      const data = {
+        type: 'diverse',
+        name: document.getElementById('diverseModalName').value,
+        position: document.getElementById('diverseModalPosition').value,
+        kind: document.getElementById('diverseModalKind').value,
+        angle: parseFloat(document.getElementById('diverseModalAngle').value) || null,
+        diameter: parseFloat(document.getElementById('diverseModalDiameter').value) || null,
+      };
+      if (editingIndex >= 0) {
+        segments[editingIndex] = data;
+      } else {
+        segments.push(data);
+      }
+      document.getElementById('diverseModal').close();
+      renderSegments();
+    };
+
+    // ── Edit (shared entry point) ──
+    window.editSegment = function(idx) {
+      editingIndex = idx;
+      const seg = segments[idx];
+      if (seg.type === 'pipe') {
+        document.getElementById('pipeModalName').value = seg.name;
+        document.getElementById('pipeModalPosition').value = seg.position;
+        document.getElementById('pipeModalLength').value = seg.length;
+        document.getElementById('pipeModalSlope').value = seg.slope;
+        document.getElementById('pipeModalMaterial').value = seg.material;
+        document.getElementById('pipeModalType').value = seg.pipe_type;
+        document.getElementById('pipeModalTitle').textContent = 'Editar Tubulação';
+        document.getElementById('pipeModal').showModal();
+      } else {
+        document.getElementById('diverseModalName').value = seg.name;
+        document.getElementById('diverseModalPosition').value = seg.position;
+        document.getElementById('diverseModalKind').value = seg.kind;
+        document.getElementById('diverseModalAngle').value = seg.angle || '';
+        document.getElementById('diverseModalDiameter').value = seg.diameter || '';
+        document.getElementById('diverseModalTitle').textContent = 'Editar Segmento Diverso';
+        document.getElementById('diverseModal').showModal();
+      }
+    };
+
+    // Initial render
+    renderSegments();
+
+    // ── Form submission ──
+    const form = document.getElementById('paramsForm');
+
+    form.addEventListener('submit', (event) => {
+      let valid = true;
+
+      form.querySelectorAll('input[required]').forEach(input => {
+        const errLabel = document.getElementById('err-' + input.id);
+        if (!input.checkValidity()) {
+          input.classList.add('input-error');
+          if (errLabel) errLabel.classList.remove('hidden');
+          valid = false;
+        } else {
+          input.classList.remove('input-error');
+          if (errLabel) errLabel.classList.add('hidden');
+        }
+      });
+
+      if (!valid) {
+        event.preventDefault();
+        event.stopPropagation();
+      } else {
+        document.getElementById('segmentsJsonInput').value = JSON.stringify(segments);
+        document.getElementById('spin').classList.remove('hidden');
+        document.getElementById('playIcon').classList.add('hidden');
+      }
+    }, false);
+  })();
+
+  lucide.createIcons();
+</script>
+{% endblock %}
