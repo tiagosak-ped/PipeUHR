@@ -97,6 +97,19 @@
     color: hsl(var(--bc) / 0.5);
     font-size: 0.8125rem;
   }
+
+  /* ─── Tabelas: sutil realce na linha sob o cursor ────────────────────────── */
+  .result-table tbody tr {
+    transition: background-color 0.18s ease;
+    cursor: pointer;
+  }
+  .result-table tbody tr:hover {
+    background-color: oklch(var(--p) / 0.07);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .result-table tbody tr { transition: none; }
+  }
 </style>
 {% endblock %}
 
@@ -137,17 +150,17 @@
 
 <!-- Key Metrics -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  <div class="rounded-lg border border-primary/20 bg-primary/5 p-5">
+  <div class="panel rounded-lg border border-primary/20 bg-primary/5 p-5">
     <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Custo total (CT)</p>
     <p class="text-3xl font-semibold font-mono-data text-primary">{{ state.cost_total|fmt_br(1) }}</p>
     <p class="text-xs text-base-content/40 mt-1">milhões R$ — jan/26</p>
   </div>
-  <div class="rounded-lg border border-base-300 p-5">
+  <div class="panel rounded-lg border border-base-300 p-5">
     <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Potência turbina/máquina</p>
     <p class="text-3xl font-semibold font-mono-data">{{ state.power_turbine|fmt_br(1) }}</p>
     <p class="text-xs text-base-content/40 mt-1">MW (relação Pt/Pb {{ state.power_ratio|fmt_br(3) }})</p>
   </div>
-  <div class="rounded-lg border border-base-300 p-5">
+  <div class="panel rounded-lg border border-base-300 p-5">
     <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Iterações do solver</p>
     <p class="text-3xl font-semibold font-mono-data">{{ result.iterations }}</p>
     <p class="text-xs text-base-content/40 mt-1">{{ result.message }}</p>
@@ -157,13 +170,13 @@
 <!-- Decision Variables & Cost Breakdown -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <!-- Decision Variables -->
-  <div class="rounded-lg border border-base-300 overflow-hidden">
+  <div class="panel rounded-lg border border-base-300 overflow-hidden">
     <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
       <i data-lucide="settings-2" class="w-4 h-4 text-base-content/50"></i>
       <span class="font-medium text-sm">Variáveis de decisão otimizadas</span>
     </div>
     <div class="overflow-x-auto">
-      <table class="table table-zebra table-sm w-full">
+      <table class="result-table table table-zebra table-sm w-full">
         <tbody>
           {% for label, value, unit in decision %}
           <tr>
@@ -178,13 +191,13 @@
   </div>
 
   <!-- Costs -->
-  <div class="rounded-lg border border-base-300 overflow-hidden">
+  <div class="panel rounded-lg border border-base-300 overflow-hidden">
     <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
       <i data-lucide="banknote" class="w-4 h-4 text-base-content/50"></i>
       <span class="font-medium text-sm">Composição de custos (milhões R$)</span>
     </div>
     <div class="overflow-x-auto">
-      <table class="table table-zebra table-sm w-full">
+      <table class="result-table table table-zebra table-sm w-full">
         <tbody>
           {% for label, value in costs %}
           <tr>
@@ -203,13 +216,13 @@
 </div>
 
 <!-- Segment Results -->
-<div class="rounded-lg border border-base-300 overflow-hidden mb-6">
+<div class="panel rounded-lg border border-base-300 overflow-hidden mb-6">
   <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
     <i data-lucide="git-branch" class="w-4 h-4 text-base-content/50"></i>
     <span class="font-medium text-sm">Resultados por segmento</span>
   </div>
   <div class="overflow-x-auto">
-    <table class="table table-zebra table-sm w-full">
+    <table class="result-table table table-zebra table-sm w-full">
       <thead>
         <tr class="text-xs uppercase tracking-wider text-base-content/50">
           <th>Segmento</th>
@@ -253,7 +266,7 @@
 </div>
 
 <!-- Constraint Verification -->
-<div class="rounded-lg border border-base-300 overflow-hidden">
+<div class="panel rounded-lg border border-base-300 overflow-hidden">
   <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <i data-lucide="clipboard-check" class="w-4 h-4 text-base-content/50"></i>
@@ -264,7 +277,7 @@
     </span>
   </div>
   <div class="overflow-x-auto">
-    <table class="table table-zebra table-sm w-full">
+    <table class="result-table table table-zebra table-sm w-full">
       <thead>
         <tr class="text-xs uppercase tracking-wider text-base-content/50">
           <th>Restrição</th>

@@ -2,7 +2,7 @@
 
 ## Design Philosophy
 
-The interface follows a **restrained, data-first** aesthetic. Every element serves readability and task completion. No decorative gradients, no unnecessary shadows, no visual noise. The design communicates institutional credibility appropriate for an R&D deliverable reviewed by engineers and regulatory bodies.
+The interface follows a **restrained, data-first** aesthetic. Every element serves readability and task completion. No decorative gradients or visual noise; elevation is subtle and purposeful (soft, theme-aware shadows that aid grouping and signal interactivity, never decoration). The design communicates institutional credibility appropriate for an R&D deliverable reviewed by engineers and regulatory bodies.
 
 ## Color Strategy: Restrained
 
@@ -57,11 +57,12 @@ Line length capped at 72ch for prose blocks. Data tables use full available widt
 ### Navigation
 - Slim horizontal navbar (h-14), no hamburger menu needed (low page count).
 - Brand mark left-aligned, theme toggle right-aligned.
-- Background: `base-200` in light, `base-200` in dark. No strong color bar.
+- Background: `base-200` in light, `base-200` in dark. No strong color bar; a subtle shadow (`.app-navbar`) adds depth against the content.
 
 ### Cards / Panels
 - Used sparingly for grouping related data (cost breakdown, decision variables).
-- 1px border (`base-300`), no box-shadow. Border-radius: 8px (`rounded-lg`).
+- 1px border (`base-300`) with a subtle elevation shadow (`--pu-shadow`). Border-radius: 8px (`rounded-lg`).
+- Hover state: deepened shadow (`--pu-shadow-lg`) plus a primary-tinted border (`oklch(var(--p) / 0.40)`), no layout motion. Apply via the shared `.panel` class.
 - Header: semibold text, no background differentiation.
 
 ### Tables
@@ -70,6 +71,7 @@ Line length capped at 72ch for prose blocks. Data tables use full available widt
 - Monospace font for all numeric cells.
 - Right-aligned numbers, left-aligned text.
 - Header row uses `text-xs uppercase tracking-wider` for formality.
+- Row hover: each `<tbody>` row picks up a subtle primary-tinted background (`oklch(var(--p) / 0.07)`) on hover, signaling interactivity. No layout motion; transitions respect `prefers-reduced-motion: reduce`.
 
 ### Forms / Inputs
 - DaisyUI `input-bordered` with `input-sm` sizing.
@@ -87,8 +89,20 @@ Line length capped at 72ch for prose blocks. Data tables use full available widt
 
 ### Collapsible Groups (Accordion)
 - DaisyUI `collapse` with `collapse-arrow`.
-- Grouped inside a vertical stack with 1px gap borders.
+- Grouped inside a vertical stack with 1px gap borders; the container carries a subtle shadow (`.panel-accordion`).
+- Row highlight: the hovered title row gets a faint background tint (`oklch(var(--bc) / 0.05)`).
 - First group open by default.
+
+## Elevation & Interaction
+
+Elevation is expressed through two theme-aware shadow tokens defined in `base.html`, tuned per theme (steel-blue tint in `winter`, deepened neutral in `business`):
+
+| Token | Usage |
+|-------|-------|
+| `--pu-shadow` | Resting elevation for panels, the navbar, and the accordion container. |
+| `--pu-shadow-lg` | Hover elevation for panels, paired with a primary-tinted border. |
+
+Interaction stays understated: transitions run at 180–200 ms on an ease-out curve, with no translation or scale, and are fully disabled under `prefers-reduced-motion: reduce`.
 
 ## Dark Mode Implementation
 

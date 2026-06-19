@@ -35,13 +35,62 @@
       font-size: 0.8125rem;
       font-weight: 500;
     }
+
+    /* ── Elevação sutil e institucional (por tema) ─────────────────────── */
+    :root {
+      --pu-shadow:
+        0 1px 2px -1px oklch(0.45 0.05 245 / 0.10),
+        0 2px 6px -2px oklch(0.45 0.05 245 / 0.08);
+      --pu-shadow-lg:
+        0 4px 10px -3px oklch(0.45 0.05 245 / 0.14),
+        0 10px 24px -6px oklch(0.45 0.05 245 / 0.12);
+    }
+    [data-theme="business"] {
+      --pu-shadow:
+        0 1px 2px -1px oklch(0 0 0 / 0.40),
+        0 2px 8px -2px oklch(0 0 0 / 0.34);
+      --pu-shadow-lg:
+        0 6px 14px -4px oklch(0 0 0 / 0.55),
+        0 14px 30px -8px oklch(0 0 0 / 0.45);
+    }
+
+    /* Navbar: leve profundidade para separar do conteúdo */
+    .app-navbar { box-shadow: var(--pu-shadow); }
+
+    /* Painéis: sombra sutil + realce de borda/sombra no hover */
+    .panel {
+      box-shadow: var(--pu-shadow);
+      transition:
+        box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.2s ease;
+    }
+    .panel:hover {
+      box-shadow: var(--pu-shadow-lg);
+      border-color: oklch(var(--p) / 0.40);
+    }
+
+    /* Acordeão: sombra no container + realce da linha sob o cursor */
+    .panel-accordion { box-shadow: var(--pu-shadow); }
+    .panel-accordion .collapse-title {
+      transition: background-color 0.18s ease;
+    }
+    .panel-accordion .collapse:hover > .collapse-title {
+      background-color: oklch(var(--bc) / 0.05);
+    }
+
+    /* Acessibilidade: respeita preferência por menos movimento */
+    @media (prefers-reduced-motion: reduce) {
+      .panel,
+      .app-navbar,
+      .panel-accordion .collapse-title { transition: none; }
+    }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-screen flex flex-col bg-base-100 text-base-content font-sans text-sm antialiased">
 
   <!-- Navbar -->
-  <header class="navbar bg-base-200 border-b border-base-300 px-4 lg:px-8 h-14 min-h-0">
+  <header class="navbar app-navbar bg-base-200 border-b border-base-300 px-4 lg:px-8 h-14 min-h-0">
     <div class="flex-1 gap-2">
       <a href="{{ url_for('index') }}" class="flex items-center gap-2 font-semibold text-base hover:opacity-80 transition-opacity">
         <i data-lucide="waves" class="w-5 h-5 text-primary"></i>

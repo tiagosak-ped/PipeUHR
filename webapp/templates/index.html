@@ -17,7 +17,7 @@
 
 <form id="paramsForm" action="{{ url_for('solve') }}" method="post" novalidate>
   {# ── Accordion de parâmetros escalares ── #}
-  <div class="space-y-px rounded-lg border border-base-300 overflow-hidden">
+  <div class="panel-accordion space-y-px rounded-lg border border-base-300 overflow-hidden">
     {% for group_name, fields in groups %}
     {% set gid = loop.index %}
     <div class="collapse collapse-arrow bg-base-100 border-b border-base-300 last:border-b-0">
