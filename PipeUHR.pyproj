@@ -41,6 +41,13 @@
     <Content Include="Planilha Chris.xlsm" />
     <Content Include="PRODUCT.md" />
     <Content Include="requirements.txt" />
+    <Content Include="webapp\assets\casa_forca.png" />
+    <Content Include="webapp\assets\fundo_uhr.png" />
+    <Content Include="webapp\assets\logo.png" />
+    <Content Include="webapp\assets\exemplo_UHR.png" />
+    <Content Include="webapp\static\img\casa_forca.png" />
+    <Content Include="webapp\static\img\fundo_uhr.png" />
+    <Content Include="webapp\static\img\README.md" />
     <Content Include="webapp\templates\base.html" />
     <Content Include="webapp\templates\index.html" />
     <Content Include="webapp\templates\result.html" />
@@ -48,6 +55,9 @@
   <ItemGroup>
     <Folder Include="pipeuhr\" />
     <Folder Include="webapp\" />
+    <Folder Include="webapp\assets\" />
+    <Folder Include="webapp\static\" />
+    <Folder Include="webapp\static\img\" />
     <Folder Include="webapp\templates\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

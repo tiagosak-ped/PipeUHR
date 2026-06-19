@@ -37,21 +37,20 @@
 
   /* Popover flutuante */
   .uhr-tooltip {
-    position: absolute;
-    z-index: 20;
-    pointer-events: none;
-    min-width: 12.5rem;
-    max-width: 17rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.5rem;
-    background-color: hsl(var(--b1) / 1);
-    backdrop-filter: none;
-    border: 1px solid hsl(var(--bc) / 0.18);
-    color: hsl(var(--bc));
-    box-shadow: 0 16px 34px -8px rgba(0, 0, 0, 0.55),
-                0 8px 16px -6px rgba(0, 0, 0, 0.4);
-    font-size: 0.75rem;
-    line-height: 1.15rem;
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+      min-width: 12.5rem;
+      max-width: 17rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 0.5rem;
+      background-color: oklch(var(--b1) / 0.70);
+      backdrop-filter: none;
+      border: 1px solid hsl(var(--bc) / 0.18);
+      color: hsl(var(--bc));
+      box-shadow: 0 16px 34px -8px rgba(0, 0, 0, 0.55), 0 8px 16px -6px rgba(0, 0, 0, 0.4);
+      font-size: 0.75rem;
+      line-height: 1.15rem;
   }
   .uhr-tt-title {
     font-weight: 600;
@@ -379,9 +378,9 @@
     // A casa de força é DINÂMICA (posicionada pelo fim da cadeia "Antes").
     // Aqui ficam só o tamanho e as âncoras de entrada/saída RELATIVAS à imagem.
     casaForca: {
-      w: 0.05,
-      inlet:  { fx: 0.05, fy: 0.80 }, // entrada: onde a tubulação "Antes" encosta
-      outlet: { fx: 0.55, fy: 0.85 }, // saída: de onde parte a tubulação "Depois"
+      w: 0.07,
+      inlet:  { fx: 0.02, fy: 0.80 }, // entrada: onde a tubulação "Antes" encosta
+      outlet: { fx: 0.98, fy: 0.85 }, // saída: de onde parte a tubulação "Depois"
     },
   };
 
