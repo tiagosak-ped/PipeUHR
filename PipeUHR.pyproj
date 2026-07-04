@@ -12,6 +12,7 @@
     <OutputPath>.</OutputPath>
     <Name>PipeUHR</Name>
     <RootNamespace>PipeUHR</RootNamespace>
+    <TestFramework>Pytest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -34,16 +35,50 @@
     <Compile Include="pipeuhr\segments.py" />
     <Compile Include="pipeuhr\turbine_selection.py" />
     <Compile Include="pipeuhr\__init__.py" />
+    <Compile Include="tests\conftest.py" />
+    <Compile Include="tests\e2e\conftest.py" />
+    <Compile Include="tests\e2e\test_smoke.py" />
+    <Compile Include="tests\e2e\test_smoke_playwright.py" />
+    <Compile Include="tests\e2e\__init__.py" />
+    <Compile Include="tests\integration\test_app_routes.py" />
+    <Compile Include="tests\integration\__init__.py" />
+    <Compile Include="tests\solver\test_solver_properties.py" />
+    <Compile Include="tests\solver\test_solver_regression.py" />
+    <Compile Include="tests\solver\__init__.py" />
+    <Compile Include="tests\unit\test_aux_data.py" />
+    <Compile Include="tests\unit\test_cost_models.py" />
+    <Compile Include="tests\unit\test_material_strength.py" />
+    <Compile Include="tests\unit\test_segments.py" />
+    <Compile Include="tests\unit\__init__.py" />
+    <Compile Include="tests\__init__.py" />
     <Compile Include="webapp\app.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="DESIGN.md" />
     <Content Include="PRODUCT.md" />
     <Content Include="requirements.txt" />
+    <Content Include="TESTING_PLAN.md" />
+    <Content Include="tests\e2e\__pycache__\conftest.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\e2e\__pycache__\test_smoke.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\e2e\__pycache__\test_smoke_playwright.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\e2e\__pycache__\__init__.cpython-314.pyc" />
+    <Content Include="tests\integration\__pycache__\test_app_routes.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\integration\__pycache__\__init__.cpython-314.pyc" />
+    <Content Include="tests\solver\__pycache__\test_solver_properties.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\solver\__pycache__\test_solver_regression.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\solver\__pycache__\__init__.cpython-314.pyc" />
+    <Content Include="tests\unit\__pycache__\test_aux_data.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\unit\__pycache__\test_cost_models.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\unit\__pycache__\test_material_strength.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\unit\__pycache__\test_segments.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\unit\__pycache__\__init__.cpython-314.pyc" />
+    <Content Include="tests\__pycache__\conftest.cpython-314-pytest-9.1.1.pyc" />
+    <Content Include="tests\__pycache__\__init__.cpython-314.pyc" />
     <Content Include="webapp\assets\casa_forca.png" />
     <Content Include="webapp\assets\fundo_uhr.png" />
     <Content Include="webapp\assets\logo.png" />
     <Content Include="webapp\assets\exemplo_UHR.png" />
+    <Content Include="webapp\data\templates\.gitkeep" />
     <Content Include="webapp\static\img\casa_forca.png" />
     <Content Include="webapp\static\img\fundo_uhr.png" />
     <Content Include="webapp\static\img\README.md" />
@@ -53,8 +88,20 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="pipeuhr\" />
+    <Folder Include="tests\" />
+    <Folder Include="tests\e2e\" />
+    <Folder Include="tests\e2e\__pycache__\" />
+    <Folder Include="tests\integration\" />
+    <Folder Include="tests\integration\__pycache__\" />
+    <Folder Include="tests\solver\" />
+    <Folder Include="tests\solver\__pycache__\" />
+    <Folder Include="tests\unit\" />
+    <Folder Include="tests\unit\__pycache__\" />
+    <Folder Include="tests\__pycache__\" />
     <Folder Include="webapp\" />
     <Folder Include="webapp\assets\" />
+    <Folder Include="webapp\data\" />
+    <Folder Include="webapp\data\templates\" />
     <Folder Include="webapp\static\" />
     <Folder Include="webapp\static\img\" />
     <Folder Include="webapp\templates\" />

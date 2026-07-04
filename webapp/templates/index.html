@@ -4,10 +4,20 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-xl font-semibold">Parâmetros do projeto</h1>
-  <button type="reset" form="paramsForm" class="btn btn-ghost btn-sm gap-1">
-    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-    Restaurar padrão
-  </button>
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn btn-outline btn-sm gap-1" onclick="openLoadModal()">
+      <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+      Ler Dados
+    </button>
+    <button type="button" class="btn btn-outline btn-sm gap-1" onclick="openSaveModal()">
+      <i data-lucide="save" class="w-3.5 h-3.5"></i>
+      Salvar Dados
+    </button>
+    <button type="reset" form="paramsForm" class="btn btn-ghost btn-sm gap-1">
+      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+      Restaurar padrão
+    </button>
+  </div>
 </div>
 
 <p class="text-base-content/60 text-sm mb-6 max-w-prose">
@@ -185,6 +195,40 @@
     <div class="modal-action">
       <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('diverseModal').close()">Cancelar</button>
       <button type="button" class="btn btn-primary btn-sm" onclick="saveDiverseModal()">Salvar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+{# ── Modal: Salvar template ── #}
+<dialog id="saveTemplateModal" class="modal">
+  <div class="modal-box max-w-sm">
+    <h3 class="font-bold text-lg">Salvar template</h3>
+    <div class="form-control w-full mt-4">
+      <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Nome do template</span></label>
+      <input type="text" id="saveTemplateName" class="input input-bordered input-sm w-full font-mono-data" placeholder="Ex.: Projeto A – variante 1">
+    </div>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('saveTemplateModal').close()">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="confirmSave()">Salvar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+{# ── Modal: Ler template ── #}
+<dialog id="loadTemplateModal" class="modal">
+  <div class="modal-box max-w-sm">
+    <h3 class="font-bold text-lg">Ler template</h3>
+    <div class="form-control w-full mt-4">
+      <label class="label py-1"><span class="label-text text-xs font-medium uppercase tracking-wider text-base-content/60">Selecione um template</span></label>
+      <select id="loadTemplateSelect" class="select select-bordered select-sm w-full font-mono-data">
+        <option value="" disabled selected>Carregando…</option>
+      </select>
+    </div>
+    <div class="modal-action">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('loadTemplateModal').close()">Cancelar</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="confirmLoad()">Carregar</button>
     </div>
   </div>
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
@@ -386,6 +430,79 @@
 
     // Initial render
     renderSegments();
+
+    // ── Template: Salvar ──
+    window.openSaveModal = function() {
+      document.getElementById('saveTemplateName').value = '';
+      document.getElementById('saveTemplateModal').showModal();
+      setTimeout(() => document.getElementById('saveTemplateName').focus(), 50);
+    };
+
+    window.confirmSave = async function() {
+      const name = document.getElementById('saveTemplateName').value.trim();
+      if (!name) {
+        document.getElementById('saveTemplateName').focus();
+        return;
+      }
+      const params = {};
+      document.getElementById('paramsForm').querySelectorAll('input[name]:not([type=hidden]):not([type=reset])').forEach(inp => {
+        params[inp.name] = inp.value;
+      });
+      try {
+        const res = await fetch('/templates/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, params, segments }),
+        });
+        if (!res.ok) throw new Error('Erro ao salvar');
+        document.getElementById('saveTemplateModal').close();
+      } catch (err) {
+        alert('Não foi possível salvar o template: ' + err.message);
+      }
+    };
+
+    // ── Template: Ler ──
+    window.openLoadModal = async function() {
+      const sel = document.getElementById('loadTemplateSelect');
+      sel.innerHTML = '<option value="" disabled selected>Carregando…</option>';
+      document.getElementById('loadTemplateModal').showModal();
+      try {
+        const res = await fetch('/templates/list');
+        const items = await res.json();
+        if (!items.length) {
+          sel.innerHTML = '<option value="" disabled selected>Nenhum template salvo</option>';
+          return;
+        }
+        sel.innerHTML = '<option value="" disabled selected>Selecione…</option>'
+          + items.map(t => `<option value="${t.file}">${t.name}</option>`).join('');
+      } catch (err) {
+        sel.innerHTML = '<option value="" disabled selected>Erro ao carregar lista</option>';
+      }
+    };
+
+    window.confirmLoad = async function() {
+      const sel = document.getElementById('loadTemplateSelect');
+      const slug = sel.value;
+      if (!slug) return;
+      try {
+        const res = await fetch(`/templates/load/${slug}`);
+        if (!res.ok) throw new Error('Template não encontrado');
+        const tpl = await res.json();
+        // Preenche os campos escalares
+        const form = document.getElementById('paramsForm');
+        Object.entries(tpl.params || {}).forEach(([key, val]) => {
+          const inp = form.querySelector(`[name="${key}"]`);
+          if (inp) inp.value = val;
+        });
+        // Reconstrói a tabela de segmentos
+        segments.length = 0;
+        (tpl.segments || []).forEach(s => segments.push(s));
+        renderSegments();
+        document.getElementById('loadTemplateModal').close();
+      } catch (err) {
+        alert('Não foi possível carregar o template: ' + err.message);
+      }
+    };
 
     // ── Form submission ──
     const form = document.getElementById('paramsForm');

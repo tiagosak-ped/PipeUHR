@@ -1,0 +1,89 @@
+{
+  "name": "Projeto Teste",
+  "saved_at": "2026-06-24T18:20:46",
+  "params": {
+    "params-accordion": "on",
+    "VOL_SUP_HM3": "25",
+    "VOL_INF_HM3": "50",
+    "H_MED_SUP": "76",
+    "H_MED_INF": "82",
+    "FLOW_TURBINE": "144.0",
+    "EFF_TURBINE": "0.95",
+    "EFF_PUMP": "0.82",
+    "N_MACHINES": "2",
+    "HOURS_OFF": "2.0",
+    "COTA_TERRENO_SUP": "1930.0",
+    "COTA_TERRENO_INF": "1561.0",
+    "COTA_POWERHOUSE": "1530.0",
+    "BORDA_LIVRE": "1.0",
+    "COST_LOW_PRESSURE": "3.043992722199214",
+    "COST_HIGH_PRESSURE": "6.545741267696708",
+    "PATM_MCA": "10.0",
+    "HVAPOR_MCA": "0.433",
+    "PUMP_SPEED_RPM": "428.58",
+    "DAM_HEIGHT_MAX": "150.0",
+    "POWER_MIN_PER_MACHINE": "200.0",
+    "RATIO_MAX": "1.1",
+    "RATIO_MIN": "0.85",
+    "HOURS_TURB_MIN": "6.0",
+    "V_MAX_CONCRETE": "7.0",
+    "V_MAX_STEEL": "8.0",
+    "V_MIN": "2.0",
+    "HEAD_LOSS_MAX_FRAC": "0.04",
+    "NPSH_SAFETY_FACTOR": "1.15"
+  },
+  "segments": [
+    {
+      "type": "pipe",
+      "name": "AB",
+      "length": 4029,
+      "slope": 0.45,
+      "material": "Concreto",
+      "pipe_type": "Baixa Pressão",
+      "position": "Antes"
+    },
+    {
+      "type": "diverse",
+      "name": "Curva 45",
+      "kind": "Curva",
+      "position": "Antes",
+      "diameter": null,
+      "angle": 45
+    },
+    {
+      "type": "pipe",
+      "name": "BC",
+      "length": 577,
+      "slope": 45,
+      "material": "Aço",
+      "pipe_type": "Alta Pressão",
+      "position": "Antes"
+    },
+    {
+      "type": "diverse",
+      "name": "Bifurcação casa de força",
+      "kind": "Bifurcação",
+      "position": "Antes",
+      "diameter": null,
+      "angle": null
+    },
+    {
+      "type": "pipe",
+      "name": "EF",
+      "length": 512,
+      "slope": 19,
+      "material": "Concreto",
+      "pipe_type": "Sucção",
+      "position": "Depois"
+    },
+    {
+      "type": "pipe",
+      "name": "GH",
+      "position": "Depois",
+      "length": 1000,
+      "slope": 30,
+      "material": "Aço",
+      "pipe_type": "Sucção"
+    }
+  ]
+}

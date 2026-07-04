@@ -17,9 +17,13 @@ e acessar http://127.0.0.1:5000
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
+import re
 import sys
+import unicodedata
+from pathlib import Path
 
 # Garante que o pacote ``pipeuhr`` (na raiz do projeto) seja importável.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -39,6 +43,17 @@ from pipeuhr import (
 )
 
 app = Flask(__name__)
+
+TEMPLATES_DIR = Path(__file__).parent / "data" / "templates"
+TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _slugify(name: str) -> str:
+	"""Converte um nome livre em um slug seguro para uso como nome de arquivo."""
+	normalized = unicodedata.normalize("NFKD", name)
+	ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
+	slug = re.sub(r"[^\w\s-]", "", ascii_name).strip().lower()
+	return re.sub(r"[\s_-]+", "-", slug) or "template"
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +276,63 @@ def build_scheme_payload(model: GlobalOptimization, state) -> tuple[list, dict]:
 		"cota_powerhouse": model.COTA_POWERHOUSE,
 	}
 	return segments, levels
+
+
+# ---------------------------------------------------------------------------
+# Rotas de templates
+# ---------------------------------------------------------------------------
+
+@app.route("/templates/list")
+def templates_list():
+	"""Retorna a lista de templates salvos como JSON."""
+	items = []
+	for path in sorted(TEMPLATES_DIR.glob("*.json")):
+		try:
+			data = json.loads(path.read_text(encoding="utf-8"))
+			items.append({"file": path.stem, "name": data.get("name", path.stem)})
+		except Exception:
+			pass
+	return app.response_class(
+		json.dumps(items, ensure_ascii=False),
+		mimetype="application/json",
+	)
+
+
+@app.route("/templates/save", methods=["POST"])
+def templates_save():
+	"""Salva os dados do formulário como um template JSON nomeado."""
+	body = request.get_json(force=True)
+	name = (body.get("name") or "template").strip()
+	slug = _slugify(name)
+	payload = {
+		"name": name,
+		"saved_at": datetime.datetime.now().isoformat(timespec="seconds"),
+		"params": body.get("params", {}),
+		"segments": body.get("segments", []),
+	}
+	(TEMPLATES_DIR / f"{slug}.json").write_text(
+		json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+	)
+	return app.response_class(
+		json.dumps({"ok": True, "file": slug}),
+		mimetype="application/json",
+	)
+
+
+@app.route("/templates/load/<slug>")
+def templates_load(slug):
+	"""Carrega um template salvo pelo seu slug."""
+	path = TEMPLATES_DIR / f"{slug}.json"
+	if not path.exists():
+		return app.response_class(
+			json.dumps({"error": "not found"}),
+			status=404,
+			mimetype="application/json",
+		)
+	return app.response_class(
+		path.read_text(encoding="utf-8"),
+		mimetype="application/json",
+	)
 
 
 @app.route("/")
