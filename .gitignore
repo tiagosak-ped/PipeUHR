@@ -3,3 +3,11 @@
 
 # Ignorar fluxos de trabalho e configurações do GitHub (.github)
 .github/
+
+# Python bytecode / caches
+__pycache__/
+*.pyc
+
+# pytest artifacts
+.pytest_cache/
+.coverage
