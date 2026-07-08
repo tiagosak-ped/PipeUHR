@@ -867,12 +867,19 @@
         // ══════════════════════════════════════════════════════════════════════════
         const PIPE_DIAMETER_SCALE = 10;
 
+        // Fator de exagero da ALTURA (profundidade) dos reservatórios (apenas visual).
+        const RESERVOIR_HEIGHT_SCALE = 4;
+
         // Opacidade dos rótulos
         const LABEL_BG_OPACITY = 0.32;
         const LABEL_TEXT_OPACITY = 0.9;
 
         // Margem do enquadramento inicial (1.0 = bordas encostadas; >1 afasta)
         const INITIAL_FIT_MARGIN = 1.04;
+
+        // Distância (multiplicador) entre o objeto e seu label — quanto maior, mais
+        // afastado o rótulo fica do topo do objeto referenciado.
+        const LABEL_OFFSET_SCALE = 3.2;
 
         let initialized = false;
         let renderer, scene, camera, controls, raycaster, mouse;
@@ -922,10 +929,11 @@
                 }
             }
 
-            // Totais preliminares (para dimensionar a casa antes do traçado)
-            let preRun = 0;
-            antes.concat(depois).forEach(function (t) { preRun += geom(t).run; });
+            // Totais preliminares (para dimensionar reservatórios/casa antes do traçado)
+            let preRun = 0, preDrop = 0;
+            antes.concat(depois).forEach(function (t) { const g = geom(t); preRun += g.run; preDrop += g.drop; });
             preRun = Math.max(preRun, 1);
+            preDrop = Math.max(preDrop, 1);
 
             let dMax = 0;
             pipesAll.forEach(function (p) { dMax = Math.max(dMax, p.diameter || 0); });
@@ -938,10 +946,25 @@
             const baseH = dMaxVis * 1.8;
             const domeR = phW * 0.48;
 
+            // ── Reservatórios: geometria definida ANTES do traçado ──────────────────
+            // resDepth é a "altura" (profundidade) real da piscina, já ampliada pela
+            // constante RESERVOIR_HEIGHT_SCALE (apenas visual, não afeta o traçado).
+            const resRx = Math.max(preRun * 0.075, dMaxVis * 2.2);   // semi-eixo X (oval)
+            const resRz = Math.max(preRun * 0.32 * 0.1, dMaxVis * 2.2) || dMaxVis * 2.2; // semi-eixo Z (oval)
+            const resDepth = Math.max(preDrop * 0.05, dMaxVis * 1.2) * RESERVOIR_HEIGHT_SCALE;
+
+            // Posições horizontais (X) de referência para os centros dos reservatórios.
+            // O centro X do superior fica à esquerda da origem do traçado (0,0); o do
+            // inferior fica à direita do ponto final estimado (preRun horizontal).
+            const resCxSup = -resRx * 0.9;
+            const resTopYSup = 0;                          // borda (nível d'água) do reservatório superior
+            const resBottomYSup = resTopYSup - resDepth;    // FUNDO do reservatório superior
+
             // ── Traçado (1 unidade = 1 m; escalas H e V idênticas) ──────────────────
-            function chainNodes(tubes, start) {
-                const nodes = [start.clone()];
-                let p = start.clone();
+            // ÂNCORA INICIAL: fundo do reservatório superior.
+            function chainNodes(tubes, startPt) {
+                const nodes = [startPt.clone()];
+                let p = startPt.clone();
                 tubes.forEach(function (t) {
                     const g = geom(t);
                     p = p.clone().add(new THREE.Vector3(g.run, -g.drop, 0));
@@ -950,12 +973,28 @@
                 return nodes;
             }
 
-            const start = new THREE.Vector3(0, 0, 0);
+            const start = new THREE.Vector3(resCxSup, resBottomYSup, 0); // fundo do reservatório superior
             const nodesA = chainNodes(antes, start);
-            const inletPoint = nodesA[nodesA.length - 1];                                  // lateral ESQUERDA inferior
-            const outletPoint = inletPoint.clone().add(new THREE.Vector3(phW, 0, 0));      // lateral DIREITA inferior
+            const inletPoint = nodesA[nodesA.length - 1];                                  // lateral ESQUERDA inferior da casa
+            const outletPoint = inletPoint.clone().add(new THREE.Vector3(phW, 0, 0));      // lateral DIREITA inferior da casa
             const nodesB = chainNodes(depois, outletPoint);
-            const endPt = nodesB[nodesB.length - 1];
+            const endPt = nodesB[nodesB.length - 1];                                        // ainda não é a âncora final real
+
+            // ── Reservatório inferior: TOPO (nível d'água) ancorado no fim do traçado.
+            // A âncora final da tubulação deve ser a parte SUPERIOR do reservatório
+            // inferior. Como a cadeia "Depois" foi encadeada livremente a partir da
+            // casa de máquinas, ajustamos aqui o ponto de chegada REAL: substituímos o
+            // último nó de nodesB pelo topo do reservatório inferior, mantendo o
+            // formato relativo dos segmentos anteriores.
+            const resCxInf = endPt.x + resRx * 0.9;
+            const resTopYInf = endPt.y; // nível d'água do inferior = cota onde a cadeia "Depois" efetivamente chega
+            const resBottomYInf = resTopYInf - resDepth;
+            nodesB[nodesB.length - 1] = new THREE.Vector3(resCxInf - resRx * 0.9, resTopYInf, 0); // ancoragem exata no topo (aprox. borda)
+            // Observação: para preservar a âncora exata no ponto de nível d'água do
+            // reservatório inferior (topo), usamos diretamente `endPt` (já calculado
+            // pela cadeia) como o próprio nível d'água — ou seja, o reservatório
+            // inferior é posicionado de modo que seu TOPO coincida com endPt.
+            nodesB[nodesB.length - 1] = endPt.clone();
 
             const totalRun = Math.max(endPt.x - start.x, 1);
             const totalDrop = Math.max(start.y - endPt.y, 1);
@@ -971,25 +1010,20 @@
             renderer.setSize(stageEl.clientWidth, stageEl.clientHeight);
             stageEl.insertBefore(renderer.domElement, stageEl.firstChild);
 
-            // ── Reservatórios (dimensões antes da câmera, p/ enquadramento) ─────────
-            const resRx = Math.max(totalRun * 0.075, dMaxVis * 2.2);   // semi-eixo X (oval)
-            const resRz = Math.max(sceneDepth * 0.32, dMaxVis * 2.2);  // semi-eixo Z (oval)
-            const resDepth = Math.max(totalDrop * 0.05, dMaxVis * 1.2);
-
             // ── Câmera com ZOOM INICIAL AJUSTADO: enquadra a extensão horizontal
             //    completa (reservatório a reservatório) próxima às bordas ────────────
             const xMin = start.x - resRx * 1.9;
             const xMax = endPt.x + resRx * 1.9;
             const sceneW = xMax - xMin;
-            const sceneH = totalDrop + resDepth * 3;
-            const center = new THREE.Vector3((xMin + xMax) / 2, (start.y + endPt.y) / 2, 0);
+            const sceneH = (start.y - resBottomYSup) + (resTopYInf - resBottomYInf) + totalDrop * 0.3 + resDepth;
+            const center = new THREE.Vector3((xMin + xMax) / 2, (resBottomYSup + resBottomYInf) / 2, 0);
 
             camera = new THREE.PerspectiveCamera(45, stageEl.clientWidth / stageEl.clientHeight, 0.1, totalRun * 20);
             const vfov = THREE.MathUtils.degToRad(camera.fov);
             const aspect = stageEl.clientWidth / Math.max(stageEl.clientHeight, 1);
             const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-            const distW = (sceneW / 2) / Math.tan(hfov / 2);   // distância p/ caber na largura
-            const distH = (sceneH / 2) / Math.tan(vfov / 2);   // distância p/ caber na altura
+            const distW = (sceneW / 2) / Math.tan(hfov / 2);
+            const distH = (sceneH / 2) / Math.tan(vfov / 2);
             const dist = Math.max(distW, distH) * INITIAL_FIT_MARGIN;
             camera.position.set(center.x, center.y + dist * 0.28, dist);
             camera.lookAt(center);
@@ -1010,8 +1044,8 @@
             mouse = new THREE.Vector2();
 
             // ── Reservatórios OVAIS, translúcidos, com aparência de água ────────────
-            // Sem concreto: apenas uma casca translúcida (parede + fundo) delimitando a
-            // profundidade, um volume d'água interno e uma SUPERFÍCIE ONDULADA animada.
+            // Casca (parede + fundo) delimitando a profundidade + volume d'água +
+            // SUPERFÍCIE ONDULADA animada (grid real via PlaneGeometry).
             const shellMat = new THREE.MeshStandardMaterial({
                 color: 0x9fd4e6, transparent: true, opacity: 0.18,
                 roughness: 0.1, metalness: 0.05, side: THREE.DoubleSide, depthWrite: false,
@@ -1025,6 +1059,7 @@
                 roughness: 0.05, metalness: 0.25, side: THREE.DoubleSide,
             });
 
+            // (cx, topY) = centro e cota do NÍVEL D'ÁGUA (topo) do reservatório.
             function reservoirPool(cx, topY, rx, depth, rz, label) {
                 const grp = new THREE.Group();
 
@@ -1041,34 +1076,38 @@
                 bottom.position.set(cx, topY - depth, 0);
                 grp.add(bottom);
 
-                // volume d'água (preenche ~85% da profundidade)
-                const waterH = depth * 0.85;
+                // volume d'água (preenche a piscina até o nível do topo)
+                const waterH = depth * 0.98;
                 const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, waterH, 48, 1, false), waterBodyMat);
                 body.scale.set(rx, 1, rz);
                 body.position.set(cx, topY - depth + waterH / 2, 0);
                 grp.add(body);
 
-                // superfície ondulada (malha circular com vértices animados por seno)
-                const surfGeo = new THREE.CircleGeometry(0.97, 48, 0, Math.PI * 2);
+                // ── Superfície ondulada: PLANE com grid real (subdivisões em X e Y),
+                //    depois recortada visualmente em oval pela escala + máscara alpha
+                //    do material (aqui aproximamos com um plano levemente maior que a
+                //    elipse, já que o efeito de onda é o requisito principal).
+                const segs = 40;
+                const surfGeo = new THREE.PlaneGeometry(2, 2, segs, segs);
                 const surf = new THREE.Mesh(surfGeo, waterSurfMat);
                 surf.rotation.x = -Math.PI / 2;
                 surf.scale.set(rx, rz, 1);
-                surf.position.set(cx, topY - depth + waterH, 0);
-                // guarda posições-base para a animação de ondas
+                surf.position.set(cx, topY, 0);
+                // guarda as posições-base (x,y do plano) para animar apenas Z
                 const pos = surfGeo.attributes.position;
-                surf.userData.base = pos.array.slice();
-                surf.userData.amp = Math.min(depth * 0.05, dMaxVis * 0.12); // amplitude (m)
+                surf.userData.baseX = pos.array.slice(0); // cópia com stride 3 (x,y,z)
+                surf.userData.amp = Math.min(depth * 0.035, dMaxVis * 0.1); // amplitude (m)
                 surf.userData.phase = Math.random() * Math.PI * 2;
                 waterSurfaces.push(surf);
                 grp.add(surf);
 
-                grp.add(makeLabel(label, cx, topY + dMaxVis * 1.6, 0, totalRun));
+                grp.add(makeLabel(label, cx, topY + dMaxVis * LABEL_OFFSET_SCALE, 0, totalRun));
                 scene.add(grp);
                 return grp;
             }
 
-            reservoirPool(start.x - resRx * 0.9, start.y + resDepth * 0.45, resRx, resDepth, resRz, "Reservatório Superior");
-            reservoirPool(endPt.x + resRx * 0.9, endPt.y + resDepth * 0.45, resRx, resDepth, resRz, "Reservatório Inferior");
+            reservoirPool(resCxSup, resTopYSup, resRx, resDepth, resRz, "Reservatório Superior");
+            reservoirPool(resCxInf, resTopYInf, resRx, resDepth, resRz, "Reservatório Inferior");
 
             // ── Casa de máquinas (base de concreto + cúpula de vidro + gerador) ─────
             const phInfo = {
@@ -1162,7 +1201,7 @@
                 coneOut.position.set(cxOut - phW * 0.16, pipeY, 0);
                 grp.add(coneOut);
 
-                grp.add(makeLabel("Casa de Máquinas", cx, dome.position.y + domeR + dMaxVis * 0.9, 0, totalRun));
+                grp.add(makeLabel("Casa de Máquinas", cx, dome.position.y + domeR + dMaxVis * LABEL_OFFSET_SCALE, 0, totalRun));
                 scene.add(grp);
             })();
 
@@ -1220,9 +1259,27 @@
                 addFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)], dMaxVis / 2);
             });
 
-            // ── Cota de referência ───────────────────────────────────────────────────
+            // ── Cota de referência — posicionada bem próxima ao limite SUPERIOR da
+            //    imagem. Projetamos um ponto do espaço de TELA (NDC) de volta para o
+            //    mundo, no plano Z=0 da cena, garantindo que o rótulo fique sempre
+            //    rente ao topo do quadro, independentemente do ângulo/zoom da câmera.
+            //
+            //    IMPORTANTE: a câmera só tem suas matrizes (projection/world) válidas
+            //    após um update explícito — como este cálculo ocorre ANTES do primeiro
+            //    render(), é necessário forçar a atualização aqui, senão o unproject()
+            //    usa matrizes desatualizadas e o ponto resultante cai fora da tela.
+            camera.updateProjectionMatrix();
+            camera.updateMatrixWorld(true);
+
+            function screenTopToWorld(ndcX, ndcY, atZ) {
+                const ray = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera);
+                const dir = ray.clone().sub(camera.position).normalize();
+                const t = (atZ - camera.position.z) / dir.z;
+                return camera.position.clone().add(dir.multiplyScalar(t));
+            }
+            const topWorld = screenTopToWorld(0, 0.90, 0); // ndcY=0.90 → bem próximo do topo (1.0 = borda exata)
             scene.add(makeLabel("Queda: " + fmt(totalDrop, 1) + " m  |  Avanço: " + fmt(totalRun, 1) + " m",
-                center.x, start.y + totalDrop * 0.28, 0, totalRun));
+                center.x, topWorld.y, 0, totalRun));
 
             // ── Rótulos (sprites translúcidos) ──────────────────────────────────────
             function makeLabel(text, x, y, z, scaleRef) {
@@ -1255,7 +1312,6 @@
                 return '<div class="uhr-tt-row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
             }
             function tipHtml(seg) {
-                // Dialog especial da Casa de Máquinas
                 if (seg.__powerhouse) {
                     let r = '<div class="uhr-tt-title">' + seg.name +
                         '<span class="uhr-tt-badge">Usina</span></div>';
@@ -1320,18 +1376,20 @@
             (function animate() {
                 requestAnimationFrame(animate);
                 const t = clock.getElapsedTime();
-                // ondas: desloca cada vértice da superfície com dois senos defasados
+                // Ondas: para cada superfície, desloca o eixo Z (antes da rotação, é o
+                // "altura" local do plano) usando a posição-base (x,y) de cada vértice,
+                // com dois senos defasados por vértice e no tempo → ondulação viajante.
                 waterSurfaces.forEach(function (surf) {
                     const pos = surf.geometry.attributes.position;
-                    const base = surf.userData.base;
+                    const base = surf.userData.baseX;
                     const amp = surf.userData.amp;
                     const ph = surf.userData.phase;
                     for (let i = 0; i < pos.count; i++) {
-                        const bx = base[i * 3], by = base[i * 3 + 1];
-                        pos.setZ(i,
-                            amp * Math.sin(bx * 5.0 + t * 1.6 + ph) * 0.6 +
-                            amp * Math.sin(by * 7.0 - t * 1.1 + ph) * 0.4
-                        );
+                        const bx = base[i * 3];
+                        const by = base[i * 3 + 1];
+                        const z = amp * Math.sin(bx * 6.0 + t * 1.8 + ph) * 0.6 +
+                            amp * Math.sin(by * 8.0 - t * 1.3 + ph) * 0.4;
+                        pos.setZ(i, z);
                     }
                     pos.needsUpdate = true;
                     surf.geometry.computeVertexNormals();
