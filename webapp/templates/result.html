@@ -3,689 +3,1356 @@
 
 {% block head %}
 <style>
-  /* ── Esquema gráfico da UHR ─────────────────────────────────────────── */
-  .uhr-stage {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1000 / 472;
-    background-color: hsl(var(--b2));
-    border: 1px solid hsl(var(--b3));
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-  .uhr-bg,
-  .uhr-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  .uhr-bg {
-    object-fit: fill;
-    user-select: none;
-    pointer-events: none;
-  }
-  .uhr-svg { z-index: 1; }
-  .uhr-svg .uhr-seg { cursor: pointer; }
-  .uhr-svg .uhr-hit { stroke: transparent; fill: none; stroke-linecap: round; }
-  .uhr-seg .uhr-pipe-edge,
-  .uhr-seg .uhr-pipe-glow { transition: stroke-opacity 0.12s ease; }
-  .uhr-seg.is-active .uhr-pipe-body { filter: brightness(1.12); }
-  .uhr-seg.is-active .uhr-pipe-edge { stroke-opacity: 1; }
-  .uhr-seg.is-active .uhr-pipe-glow { stroke-opacity: 0.6; }
+    /* ── Esquema gráfico da UHR ─────────────────────────────────────────── */
+    .uhr-stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1000 / 472;
+        background-color: hsl(var(--b2));
+        border: 1px solid hsl(var(--b3));
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
 
-  /* Popover flutuante */
-  .uhr-tooltip {
-      position: absolute;
-      z-index: 20;
-      pointer-events: none;
-      min-width: 12.5rem;
-      max-width: 17rem;
-      padding: 0.625rem 0.75rem;
-      border-radius: 0.5rem;
-      background-color: oklch(var(--b1) / 0.70);
-      backdrop-filter: none;
-      border: 1px solid hsl(var(--bc) / 0.18);
-      color: hsl(var(--bc));
-      box-shadow: 0 16px 34px -8px rgba(0, 0, 0, 0.55), 0 8px 16px -6px rgba(0, 0, 0, 0.4);
-      font-size: 0.75rem;
-      line-height: 1.15rem;
-  }
-  .uhr-tt-title {
-    font-weight: 600;
-    font-size: 0.8125rem;
-    margin-bottom: 0.375rem;
-    padding-bottom: 0.375rem;
-    border-bottom: 1px solid hsl(var(--b3));
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-  }
-  .uhr-tt-badge {
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.05rem 0.35rem;
-    border-radius: 0.25rem;
-    background-color: hsl(var(--p) / 0.15);
-    color: hsl(var(--p));
-  }
-  .uhr-tt-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.05rem 0;
-  }
-  .uhr-tt-row .k { color: hsl(var(--bc) / 0.55); }
-  .uhr-tt-row .v {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 500;
-    text-align: right;
-    white-space: nowrap;
-  }
+    .uhr-bg,
+    .uhr-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
 
-  .uhr-empty {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: hsl(var(--bc) / 0.5);
-    font-size: 0.8125rem;
-  }
+    .uhr-bg {
+        object-fit: fill;
+        user-select: none;
+        pointer-events: none;
+    }
 
-  /* ─── Tabelas: sutil realce na linha sob o cursor ────────────────────────── */
-  .result-table tbody tr {
-    transition: background-color 0.18s ease;
-    cursor: pointer;
-  }
-  .result-table tbody tr:hover {
-    background-color: oklch(var(--p) / 0.07);
-  }
+    .uhr-svg {
+        z-index: 1;
+    }
 
-  @media (prefers-reduced-motion: reduce) {
-    .result-table tbody tr { transition: none; }
-  }
+        .uhr-svg .uhr-seg {
+            cursor: pointer;
+        }
+
+        .uhr-svg .uhr-hit {
+            stroke: transparent;
+            fill: none;
+            stroke-linecap: round;
+        }
+
+    .uhr-seg .uhr-pipe-edge,
+    .uhr-seg .uhr-pipe-glow {
+        transition: stroke-opacity 0.12s ease;
+    }
+
+    .uhr-seg.is-active .uhr-pipe-body {
+        filter: brightness(1.12);
+    }
+
+    .uhr-seg.is-active .uhr-pipe-edge {
+        stroke-opacity: 1;
+    }
+
+    .uhr-seg.is-active .uhr-pipe-glow {
+        stroke-opacity: 0.6;
+    }
+
+    /* Popover flutuante */
+    .uhr-tooltip {
+        position: absolute;
+        z-index: 20;
+        pointer-events: none;
+        min-width: 12.5rem;
+        max-width: 17rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: 0.5rem;
+        background-color: oklch(var(--b1) / 0.70);
+        backdrop-filter: none;
+        border: 1px solid hsl(var(--bc) / 0.18);
+        color: hsl(var(--bc));
+        box-shadow: 0 16px 34px -8px rgba(0, 0, 0, 0.55), 0 8px 16px -6px rgba(0, 0, 0, 0.4);
+        font-size: 0.75rem;
+        line-height: 1.15rem;
+    }
+
+    .uhr-tt-title {
+        font-weight: 600;
+        font-size: 0.8125rem;
+        margin-bottom: 0.375rem;
+        padding-bottom: 0.375rem;
+        border-bottom: 1px solid hsl(var(--b3));
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .uhr-tt-badge {
+        font-size: 0.625rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.05rem 0.35rem;
+        border-radius: 0.25rem;
+        background-color: hsl(var(--p) / 0.15);
+        color: hsl(var(--p));
+    }
+
+    .uhr-tt-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.05rem 0;
+    }
+
+        .uhr-tt-row .k {
+            color: hsl(var(--bc) / 0.55);
+        }
+
+        .uhr-tt-row .v {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+    .uhr-empty {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: hsl(var(--bc) / 0.5);
+        font-size: 0.8125rem;
+    }
+
+    /* ── Esquema 3D (Three.js) — usina FB5 ──────────────────────────────── */
+    .uhr3d-stage {
+        position: relative;
+        width: 100%;
+        height: min(62vh, 34rem);
+        background: linear-gradient(180deg, #bfe0ee 0%, #dcedf4 55%, #e9f2ee 100%);
+        border: 1px solid hsl(var(--b3));
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+        .uhr3d-stage canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+    .uhr3d-tooltip {
+        position: absolute;
+        z-index: 30;
+        pointer-events: none;
+        min-width: 12.5rem;
+        max-width: 17rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: 0.5rem;
+        background-color: oklch(var(--b1) / 0.85);
+        border: 1px solid hsl(var(--bc) / 0.18);
+        color: hsl(var(--bc));
+        box-shadow: 0 16px 34px -8px rgba(0,0,0,0.55), 0 8px 16px -6px rgba(0,0,0,0.4);
+        font-size: 0.75rem;
+        line-height: 1.15rem;
+        display: none;
+    }
+
+    .uhr3d-legend {
+        position: absolute;
+        left: 0.75rem;
+        bottom: 0.75rem;
+        z-index: 25;
+        padding: 0.4rem 0.6rem;
+        border-radius: 0.375rem;
+        background-color: oklch(var(--b1) / 0.72);
+        border: 1px solid hsl(var(--bc) / 0.12);
+        font-size: 0.6875rem;
+        color: hsl(var(--bc) / 0.8);
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+        .uhr3d-legend .lg-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .uhr3d-legend .lg-swatch {
+            width: 0.85rem;
+            height: 0.45rem;
+            border-radius: 0.15rem;
+            display: inline-block;
+            border: 1px solid rgba(0,0,0,0.25);
+        }
+
+    /* ─── Tabelas: sutil realce na linha sob o cursor ────────────────────────── */
+    .result-table tbody tr {
+        transition: background-color 0.18s ease;
+        cursor: pointer;
+    }
+
+        .result-table tbody tr:hover {
+            background-color: oklch(var(--p) / 0.07);
+        }
+
+    @media (prefers-reduced-motion: reduce) {
+        .result-table tbody tr {
+            transition: none;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-xl font-semibold">Resultado da otimização</h1>
-  <div class="flex items-center gap-2">
-    <button type="button" class="btn btn-primary btn-sm gap-1"
-            onclick="document.getElementById('uhrSchemeModal').showModal()">
-      <i data-lucide="waves" class="w-3.5 h-3.5"></i>
-      Ver esquema da usina
-    </button>
-    <a href="{{ url_for('index') }}" class="btn btn-ghost btn-sm gap-1">
-      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-      Novos dados
-    </a>
-  </div>
+    <h1 class="text-xl font-semibold">Resultado da otimização</h1>
+    <div class="flex items-center gap-2">
+        <button type="button" class="btn btn-primary btn-sm gap-1"
+                onclick="document.getElementById('uhrSchemeModal').showModal()">
+            <i data-lucide="waves" class="w-3.5 h-3.5"></i>
+            Ver esquema da usina
+        </button>
+        <button type="button" id="uhr3dBtn" class="btn btn-secondary btn-sm gap-1">
+            <i data-lucide="box" class="w-3.5 h-3.5"></i>
+            Ver esquema da usina FB5
+        </button>
+        <a href="{{ url_for('index') }}" class="btn btn-ghost btn-sm gap-1">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            Novos dados
+        </a>
+    </div>
 </div>
 
 <!-- Status Banner -->
 {% if result.success and report.all_satisfied %}
 <div class="alert alert-success mb-6">
-  <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-  <span>Otimização convergiu e <span class="font-semibold">todas as restrições foram atendidas</span>.</span>
+    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+    <span>Otimização convergiu e <span class="font-semibold">todas as restrições foram atendidas</span>.</span>
 </div>
 {% elif result.success %}
 <div class="alert alert-warning mb-6">
-  <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-  <span>Solver convergiu, mas há
-    <span class="font-semibold">{{ report.n_violations }} restrição(ões) violada(s)</span>.</span>
+    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+    <span>
+        Solver convergiu, mas há
+        <span class="font-semibold">{{ report.n_violations }} restrição(ões) violada(s)</span>.
+    </span>
 </div>
 {% else %}
 <div class="alert alert-error mb-6">
-  <i data-lucide="x-circle" class="w-5 h-5"></i>
-  <span>O solver não convergiu: {{ result.message }}</span>
+    <i data-lucide="x-circle" class="w-5 h-5"></i>
+    <span>O solver não convergiu: {{ result.message }}</span>
 </div>
 {% endif %}
 
 <!-- Key Metrics -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  <div class="panel rounded-lg border border-primary/20 bg-primary/5 p-5">
-    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Custo total (CT)</p>
-    <p class="text-3xl font-semibold font-mono-data text-primary">{{ state.cost_total|fmt_br(1) }}</p>
-    <p class="text-xs text-base-content/40 mt-1">milhões R$ — jan/26</p>
-  </div>
-  <div class="panel rounded-lg border border-base-300 p-5">
-    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Potência turbina/máquina</p>
-    <p class="text-3xl font-semibold font-mono-data">{{ state.power_turbine|fmt_br(1) }}</p>
-    <p class="text-xs text-base-content/40 mt-1">MW (relação Pt/Pb {{ state.power_ratio|fmt_br(3) }})</p>
-  </div>
-  <div class="panel rounded-lg border border-base-300 p-5">
-    <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Iterações do solver</p>
-    <p class="text-3xl font-semibold font-mono-data">{{ result.iterations }}</p>
-    <p class="text-xs text-base-content/40 mt-1">{{ result.message }}</p>
-  </div>
+    <div class="panel rounded-lg border border-primary/20 bg-primary/5 p-5">
+        <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Custo total (CT)</p>
+        <p class="text-3xl font-semibold font-mono-data text-primary">{{ state.cost_total|fmt_br(1) }}</p>
+        <p class="text-xs text-base-content/40 mt-1">milhões R$ — jan/26</p>
+    </div>
+    <div class="panel rounded-lg border border-base-300 p-5">
+        <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Potência turbina/máquina</p>
+        <p class="text-3xl font-semibold font-mono-data">{{ state.power_turbine|fmt_br(1) }}</p>
+        <p class="text-xs text-base-content/40 mt-1">MW (relação Pt/Pb {{ state.power_ratio|fmt_br(3) }})</p>
+    </div>
+    <div class="panel rounded-lg border border-base-300 p-5">
+        <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">Iterações do solver</p>
+        <p class="text-3xl font-semibold font-mono-data">{{ result.iterations }}</p>
+        <p class="text-xs text-base-content/40 mt-1">{{ result.message }}</p>
+    </div>
 </div>
 
 <!-- Decision Variables & Cost Breakdown -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-  <!-- Decision Variables -->
-  <div class="panel rounded-lg border border-base-300 overflow-hidden">
-    <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
-      <i data-lucide="settings-2" class="w-4 h-4 text-base-content/50"></i>
-      <span class="font-medium text-sm">Variáveis de decisão otimizadas</span>
+    <!-- Decision Variables -->
+    <div class="panel rounded-lg border border-base-300 overflow-hidden">
+        <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+            <i data-lucide="settings-2" class="w-4 h-4 text-base-content/50"></i>
+            <span class="font-medium text-sm">Variáveis de decisão otimizadas</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="result-table table table-zebra table-sm w-full">
+                <tbody>
+                    {% for label, value, unit in decision %}
+                    <tr>
+                        <td class="text-sm">{{ label }}</td>
+                        <td class="text-right font-mono-data">{{ value|fmt_br(3) }}</td>
+                        <td class="text-right text-base-content/40 text-xs font-mono-data">{{ unit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="result-table table table-zebra table-sm w-full">
-        <tbody>
-          {% for label, value, unit in decision %}
-          <tr>
-            <td class="text-sm">{{ label }}</td>
-            <td class="text-right font-mono-data">{{ value|fmt_br(3) }}</td>
-            <td class="text-right text-base-content/40 text-xs font-mono-data">{{ unit }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
 
-  <!-- Costs -->
-  <div class="panel rounded-lg border border-base-300 overflow-hidden">
-    <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
-      <i data-lucide="banknote" class="w-4 h-4 text-base-content/50"></i>
-      <span class="font-medium text-sm">Composição de custos (milhões R$)</span>
+    <!-- Costs -->
+    <div class="panel rounded-lg border border-base-300 overflow-hidden">
+        <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+            <i data-lucide="banknote" class="w-4 h-4 text-base-content/50"></i>
+            <span class="font-medium text-sm">Composição de custos (milhões R$)</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="result-table table table-zebra table-sm w-full">
+                <tbody>
+                    {% for label, value in costs %}
+                    <tr>
+                        <td class="text-sm">{{ label }}</td>
+                        <td class="text-right font-mono-data">{{ value|fmt_br(2) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="bg-primary/5 font-semibold">
+                        <td class="text-sm">CT — Custo total</td>
+                        <td class="text-right font-mono-data text-primary">{{ state.cost_total|fmt_br(2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="result-table table table-zebra table-sm w-full">
-        <tbody>
-          {% for label, value in costs %}
-          <tr>
-            <td class="text-sm">{{ label }}</td>
-            <td class="text-right font-mono-data">{{ value|fmt_br(2) }}</td>
-          </tr>
-          {% endfor %}
-          <tr class="bg-primary/5 font-semibold">
-            <td class="text-sm">CT — Custo total</td>
-            <td class="text-right font-mono-data text-primary">{{ state.cost_total|fmt_br(2) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 <!-- Segment Results -->
 <div class="panel rounded-lg border border-base-300 overflow-hidden mb-6">
-  <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
-    <i data-lucide="git-branch" class="w-4 h-4 text-base-content/50"></i>
-    <span class="font-medium text-sm">Resultados por segmento</span>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="result-table table table-zebra table-sm w-full">
-      <thead>
-        <tr class="text-xs uppercase tracking-wider text-base-content/50">
-          <th>Segmento</th>
-          <th>Tipo</th>
-          <th>Posição</th>
-          <th>Material</th>
-          <th class="text-right">D (m)</th>
-          <th class="text-right">Área (m²)</th>
-          <th class="text-right">V (m/s)</th>
-          <th class="text-right">Perda (m)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ss in state.segment_states %}
-        <tr>
-          <td class="text-sm">{{ ss.name }}</td>
-          <td>
-            {% if ss.is_pipe %}
-            <span class="badge badge-info badge-xs">Tubo</span>
-            {% elif ss.segment_type == 'auto' %}
-            <span class="badge badge-ghost badge-xs">Auto</span>
-            {% else %}
-            <span class="badge badge-warning badge-xs">Diverso</span>
-            {% endif %}
-          </td>
-          <td class="text-sm">{{ ss.position.value }}</td>
-          <td class="text-sm">{{ ss.material if ss.is_pipe else '--' }}</td>
-          <td class="text-right font-mono-data">{{ ss.diameter|fmt_br(3) if ss.is_pipe else '--' }}</td>
-          <td class="text-right font-mono-data">{{ ss.area|fmt_br(3) }}</td>
-          <td class="text-right font-mono-data">{{ ss.velocity|fmt_br(3) }}</td>
-          <td class="text-right font-mono-data">{{ ss.head_loss|fmt_br(4) }}</td>
-        </tr>
-        {% endfor %}
-        <tr class="bg-base-200/50 font-semibold">
-          <td class="text-sm" colspan="7">Perda total</td>
-          <td class="text-right font-mono-data">{{ state.head_loss_total|fmt_br(4) }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <div class="px-4 py-3 border-b border-base-300 flex items-center gap-2">
+        <i data-lucide="git-branch" class="w-4 h-4 text-base-content/50"></i>
+        <span class="font-medium text-sm">Resultados por segmento</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="result-table table table-zebra table-sm w-full">
+            <thead>
+                <tr class="text-xs uppercase tracking-wider text-base-content/50">
+                    <th>Segmento</th>
+                    <th>Tipo</th>
+                    <th>Posição</th>
+                    <th>Material</th>
+                    <th class="text-right">D (m)</th>
+                    <th class="text-right">Área (m²)</th>
+                    <th class="text-right">V (m/s)</th>
+                    <th class="text-right">Perda (m)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ss in state.segment_states %}
+                <tr>
+                    <td class="text-sm">{{ ss.name }}</td>
+                    <td>
+                        {% if ss.is_pipe %}
+                        <span class="badge badge-info badge-xs">Tubo</span>
+                        {% elif ss.segment_type == 'auto' %}
+                        <span class="badge badge-ghost badge-xs">Auto</span>
+                        {% else %}
+                        <span class="badge badge-warning badge-xs">Diverso</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-sm">{{ ss.position.value }}</td>
+                    <td class="text-sm">{{ ss.material if ss.is_pipe else '--' }}</td>
+                    <td class="text-right font-mono-data">{{ ss.diameter|fmt_br(3) if ss.is_pipe else '--' }}</td>
+                    <td class="text-right font-mono-data">{{ ss.area|fmt_br(3) }}</td>
+                    <td class="text-right font-mono-data">{{ ss.velocity|fmt_br(3) }}</td>
+                    <td class="text-right font-mono-data">{{ ss.head_loss|fmt_br(4) }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="bg-base-200/50 font-semibold">
+                    <td class="text-sm" colspan="7">Perda total</td>
+                    <td class="text-right font-mono-data">{{ state.head_loss_total|fmt_br(4) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- Constraint Verification -->
 <div class="panel rounded-lg border border-base-300 overflow-hidden">
-  <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <i data-lucide="clipboard-check" class="w-4 h-4 text-base-content/50"></i>
-      <span class="font-medium text-sm">Verificação das restrições</span>
+    <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <i data-lucide="clipboard-check" class="w-4 h-4 text-base-content/50"></i>
+            <span class="font-medium text-sm">Verificação das restrições</span>
+        </div>
+        <span class="badge {{ 'badge-success' if report.all_satisfied else 'badge-error' }} badge-sm font-mono-data">
+            {{ report.checks|length - report.n_violations }}/{{ report.checks|length }} OK
+        </span>
     </div>
-    <span class="badge {{ 'badge-success' if report.all_satisfied else 'badge-error' }} badge-sm font-mono-data">
-      {{ report.checks|length - report.n_violations }}/{{ report.checks|length }} OK
-    </span>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="result-table table table-zebra table-sm w-full">
-      <thead>
-        <tr class="text-xs uppercase tracking-wider text-base-content/50">
-          <th>Restrição</th>
-          <th class="text-right">Valor</th>
-          <th class="text-center">Op.</th>
-          <th class="text-right">Limite</th>
-          <th class="text-right">Folga</th>
-          <th class="text-center">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in report.checks %}
-        <tr class="{{ '' if c.satisfied else 'bg-error/5' }}">
-          <td class="text-sm">{{ c.name }}</td>
-          <td class="text-right font-mono-data">{{ c.value|fmt_br(4) }} <span class="text-base-content/40">{{ c.unit }}</span></td>
-          <td class="text-center text-base-content/40 font-mono-data">{{ c.operator }}</td>
-          <td class="text-right font-mono-data">{{ c.limit|fmt_br(4) }}</td>
-          <td class="text-right font-mono-data {{ 'text-success' if c.slack >= 0 else 'text-error' }}">
-            {{ c.slack|fmt_br_signed(4) }}
-          </td>
-          <td class="text-center">
-            {% if c.satisfied %}
-            <span class="badge badge-success badge-xs gap-0.5">
-              <i data-lucide="check" class="w-2.5 h-2.5"></i> OK
-            </span>
-            {% else %}
-            <span class="badge badge-error badge-xs gap-0.5">
-              <i data-lucide="x" class="w-2.5 h-2.5"></i> Falhou
-            </span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="overflow-x-auto">
+        <table class="result-table table table-zebra table-sm w-full">
+            <thead>
+                <tr class="text-xs uppercase tracking-wider text-base-content/50">
+                    <th>Restrição</th>
+                    <th class="text-right">Valor</th>
+                    <th class="text-center">Op.</th>
+                    <th class="text-right">Limite</th>
+                    <th class="text-right">Folga</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in report.checks %}
+                <tr class="{{ '' if c.satisfied else 'bg-error/5' }}">
+                    <td class="text-sm">{{ c.name }}</td>
+                    <td class="text-right font-mono-data">{{ c.value|fmt_br(4) }} <span class="text-base-content/40">{{ c.unit }}</span></td>
+                    <td class="text-center text-base-content/40 font-mono-data">{{ c.operator }}</td>
+                    <td class="text-right font-mono-data">{{ c.limit|fmt_br(4) }}</td>
+                    <td class="text-right font-mono-data {{ 'text-success' if c.slack >= 0 else 'text-error' }}">
+                        {{ c.slack|fmt_br_signed(4) }}
+                    </td>
+                    <td class="text-center">
+                        {% if c.satisfied %}
+                        <span class="badge badge-success badge-xs gap-0.5">
+                            <i data-lucide="check" class="w-2.5 h-2.5"></i> OK
+                        </span>
+                        {% else %}
+                        <span class="badge badge-error badge-xs gap-0.5">
+                            <i data-lucide="x" class="w-2.5 h-2.5"></i> Falhou
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- ── Modal: Esquema gráfico da UHR ───────────────────────────────────── -->
 <dialog id="uhrSchemeModal" class="modal">
-  <div class="modal-box w-11/12 max-w-6xl p-0 overflow-hidden">
-    <!-- Header -->
-    <div class="flex items-center justify-between px-5 py-3 border-b border-base-300">
-      <div class="flex items-center gap-2">
-        <i data-lucide="waves" class="w-4 h-4 text-primary"></i>
-        <span class="font-semibold text-sm">Esquema do circuito hidráulico</span>
-      </div>
-      <form method="dialog">
-        <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </form>
-    </div>
-
-    <!-- Stage (fundo + SVG overlay + tooltip) -->
-    <div class="px-5 py-4">
-      <div id="uhrStage" class="uhr-stage">
-        <img id="uhrBg" class="uhr-bg"
-             src="{{ url_for('static', filename='img/fundo_uhr.png') }}"
-             alt="Corte esquemático da usina"
-             onerror="this.style.visibility='hidden'">
-        <svg id="uhrSvg" viewBox="0 0 1000 472" preserveAspectRatio="none"
-             xmlns="http://www.w3.org/2000/svg" class="uhr-svg">
-          <defs id="uhrDefs"></defs>
-          <g id="uhrPipes"></g>
-          <image id="uhrCasaForca"
-                 href="{{ url_for('static', filename='img/casa_forca.png') }}"
-                 preserveAspectRatio="xMidYMid meet" style="display:none"></image>
-          <g id="uhrMarkers"></g>
-        </svg>
-        <!-- Tooltip flutuante (popover) -->
-        <div id="uhrTooltip" class="uhr-tooltip hidden"></div>
-        <!-- Aviso quando não há dados -->
-        <div id="uhrEmpty" class="uhr-empty hidden">
-          <i data-lucide="image-off" class="w-5 h-5"></i>
-          <span>Sem segmentos para desenhar.</span>
+    <div class="modal-box w-11/12 max-w-6xl p-0 overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-base-300">
+            <div class="flex items-center gap-2">
+                <i data-lucide="waves" class="w-4 h-4 text-primary"></i>
+                <span class="font-semibold text-sm">Esquema do circuito hidráulico</span>
+            </div>
+            <form method="dialog">
+                <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </form>
         </div>
-      </div>
-      <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
-        <i data-lucide="mouse-pointer-2" class="w-3.5 h-3.5"></i>
-        Passe o mouse sobre os tubos para ver os detalhes de cada segmento.
-      </p>
+
+        <!-- Stage (fundo + SVG overlay + tooltip) -->
+        <div class="px-5 py-4">
+            <div id="uhrStage" class="uhr-stage">
+                <img id="uhrBg" class="uhr-bg"
+                     src="{{ url_for('static', filename='img/fundo_uhr.png') }}"
+                     alt="Corte esquemático da usina"
+                     onerror="this.style.visibility='hidden'">
+                <svg id="uhrSvg" viewBox="0 0 1000 472" preserveAspectRatio="none"
+                     xmlns="http://www.w3.org/2000/svg" class="uhr-svg">
+                    <defs id="uhrDefs"></defs>
+                    <g id="uhrPipes"></g>
+                    <image id="uhrCasaForca"
+                           href="{{ url_for('static', filename='img/casa_forca.png') }}"
+                           preserveAspectRatio="xMidYMid meet" style="display:none"></image>
+                    <g id="uhrMarkers"></g>
+                </svg>
+                <!-- Tooltip flutuante (popover) -->
+                <div id="uhrTooltip" class="uhr-tooltip hidden"></div>
+                <!-- Aviso quando não há dados -->
+                <div id="uhrEmpty" class="uhr-empty hidden">
+                    <i data-lucide="image-off" class="w-5 h-5"></i>
+                    <span>Sem segmentos para desenhar.</span>
+                </div>
+            </div>
+            <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
+                <i data-lucide="mouse-pointer-2" class="w-3.5 h-3.5"></i>
+                Passe o mouse sobre os tubos para ver os detalhes de cada segmento.
+            </p>
+        </div>
     </div>
-  </div>
-  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- ── Modal: Esquema 3D da usina FB5 (Three.js) ───────────────────────── -->
+<dialog id="uhr3dModal" class="modal">
+    <div class="modal-box w-11/12 max-w-7xl p-0 overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-base-300">
+            <div class="flex items-center gap-2">
+                <i data-lucide="box" class="w-4 h-4 text-secondary"></i>
+                <span class="font-semibold text-sm">Esquema 3D da usina FB5 — representação em escala (1 unid. = 1 m, escalas H e V idênticas)</span>
+            </div>
+            <form method="dialog">
+                <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Stage 3D -->
+        <div class="px-5 py-4">
+            <div id="uhr3dStage" class="uhr3d-stage">
+                <div id="uhr3dTooltip" class="uhr3d-tooltip"></div>
+                <div class="uhr3d-legend">
+                    <div class="lg-row"><span class="lg-swatch" style="background:#7c95a6"></span> Tubulação — Aço</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#929aa2"></span> Tubulação — Concreto</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#4aa3c7"></span> Reservatórios</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#c8b89a"></span> Casa de máquinas</div>
+                </div>
+            </div>
+            <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
+                <i data-lucide="rotate-3d" class="w-3.5 h-3.5"></i>
+                Arraste para orbitar, use a roda do mouse para zoom e o botão direito para transladar.
+                Passe o mouse sobre os tubos para ver os detalhes. O traçado usa o comprimento (seg.length)
+                e a inclinação (seg.slope) reais de cada segmento.
+            </p>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
   lucide.createIcons();
-  // Dados do esquema (injetados pelo backend). default() evita erro de sintaxe
-  // caso o template seja renderizado sem o payload.
   window.UHR_SEGMENTS = {{ scheme_segments_json|default('[]', true)|safe }};
   window.UHR_LEVELS = {{ scheme_levels_json|default('{}', true)|safe }};
+  // Dados agregados da usina (para o popover da Casa de Máquinas no 3D)
+  window.UHR_PLANT = {
+    power_turbine: {{ state.power_turbine|default(0, true) }},
+    power_ratio: {{ state.power_ratio|default(0, true) }},
+    head_loss_total: {{ state.head_loss_total|default(0, true) }},
+    cost_total: {{ state.cost_total|default(0, true) }}
+  };
 </script>
 <script>
-{% raw %}
-(function () {
-  "use strict";
+    {% raw %}
+    (function () {
+        "use strict";
 
-  const SVG_NS = "http://www.w3.org/2000/svg";
-  const VBW = 1000, VBH = 472; // deve casar com o viewBox e o aspect-ratio do stage
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const VBW = 1000, VBH = 472; // deve casar com o viewBox e o aspect-ratio do stage
 
-  // ── Âncoras de calibração (frações 0..1 do viewBox) ───────────────────────
-  // Ajuste estes valores para alinhar o desenho à imagem fundo_uhr.png /
-  // casa_forca.png. Todos os pontos são frações da largura (x) e altura (y).
-  const ANCHORS = {
-    reservoirSup: { x: 0.355, y: 0.585 }, // origem do traçado (saída do Reservatório Superior)
-    reservoirInf: { x: 0.825, y: 0.875 }, // chegada no Reservatório Inferior
-    // A casa de força é DINÂMICA (posicionada pelo fim da cadeia "Antes").
-    // Aqui ficam só o tamanho e as âncoras de entrada/saída RELATIVAS à imagem.
-    casaForca: {
-      w: 0.07,
-      inlet:  { fx: 0.02, fy: 0.80 }, // entrada: onde a tubulação "Antes" encosta
-      outlet: { fx: 0.98, fy: 0.85 }, // saída: de onde parte a tubulação "Depois"
-    },
-  };
+        // ── Âncoras de calibração (frações 0..1 do viewBox) ───────────────────────
+        // Ajuste estes valores para alinhar o desenho à imagem fundo_uhr.png /
+        // casa_forca.png. Todos os pontos são frações da largura (x) e altura (y).
+        const ANCHORS = {
+            reservoirSup: { x: 0.355, y: 0.585 }, // origem do traçado (saída do Reservatório Superior)
+            reservoirInf: { x: 0.825, y: 0.875 }, // chegada no Reservatório Inferior
+            // A casa de força é DINÂMICA (posicionada pelo fim da cadeia "Antes").
+            // Aqui ficam só o tamanho e as âncoras de entrada/saída RELATIVAS à imagem.
+            casaForca: {
+                w: 0.07,
+                inlet: { fx: 0.02, fy: 0.80 }, // entrada: onde a tubulação "Antes" encosta
+                outlet: { fx: 0.98, fy: 0.85 }, // saída: de onde parte a tubulação "Depois"
+            },
+        };
 
-  // ── Cores dos materiais (gradiente faux-3D via 3 traços empilhados) ───────
-  const MATERIAL_COLORS = {
-    "Aço":      { edge: "#3f5260", body: "#7c95a6", glow: "#eaf3f9" },
-    "Concreto": { edge: "#54585e", body: "#929aa2", glow: "#e9ecef" },
-  };
-  const DEFAULT_COLORS = { edge: "#3f5260", body: "#7c95a6", glow: "#eaf3f9" };
+        // ── Cores dos materiais (gradiente faux-3D via 3 traços empilhados) ───────
+        const MATERIAL_COLORS = {
+            "Aço": { edge: "#3f5260", body: "#7c95a6", glow: "#eaf3f9" },
+            "Concreto": { edge: "#54585e", body: "#929aa2", glow: "#e9ecef" },
+        };
+        const DEFAULT_COLORS = { edge: "#3f5260", body: "#7c95a6", glow: "#eaf3f9" };
 
-  const svg = document.getElementById("uhrSvg");
-  const gPipes = document.getElementById("uhrPipes");
-  const gMarkers = document.getElementById("uhrMarkers");
-  const casa = document.getElementById("uhrCasaForca");
-  const tip = document.getElementById("uhrTooltip");
-  const stage = document.getElementById("uhrStage");
-  const empty = document.getElementById("uhrEmpty");
-  if (!svg || !gPipes || !stage) return;
+        const svg = document.getElementById("uhrSvg");
+        const gPipes = document.getElementById("uhrPipes");
+        const gMarkers = document.getElementById("uhrMarkers");
+        const casa = document.getElementById("uhrCasaForca");
+        const tip = document.getElementById("uhrTooltip");
+        const stage = document.getElementById("uhrStage");
+        const empty = document.getElementById("uhrEmpty");
+        if (!svg || !gPipes || !stage) return;
 
-  const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
-  const pipesAll = segments.filter((s) => s.is_pipe);
+        const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
+        const pipesAll = segments.filter((s) => s.is_pipe);
 
-  if (tip) tip.style.display = "none";
-  if (empty) empty.style.display = "none";
-  if (casa) casa.style.display = "none";
+        if (tip) tip.style.display = "none";
+        if (empty) empty.style.display = "none";
+        if (casa) casa.style.display = "none";
 
-  if (!segments.length || !pipesAll.length) {
-    if (empty) empty.style.display = "flex";
-    return;
-  }
+        if (!segments.length || !pipesAll.length) {
+            if (empty) empty.style.display = "flex";
+            return;
+        }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function el(tag, attrs) {
-    const node = document.createElementNS(SVG_NS, tag);
-    for (const k in attrs) node.setAttribute(k, attrs[k]);
-    return node;
-  }
-  function pt(frac) { return { x: frac.x * VBW, y: frac.y * VBH }; }
-  function fmt(v, d) {
-    if (v == null || isNaN(v)) return "—";
-    return Number(v).toLocaleString("pt-BR", {
-      minimumFractionDigits: d, maximumFractionDigits: d,
-    });
-  }
-  function diameterToStroke(d) {
-    return Math.max(6, Math.min(26, 4 + (d || 4) * 1.35));
-  }
+        // ── Helpers ───────────────────────────────────────────────────────────────
+        function el(tag, attrs) {
+            const node = document.createElementNS(SVG_NS, tag);
+            for (const k in attrs) node.setAttribute(k, attrs[k]);
+            return node;
+        }
+        function pt(frac) { return { x: frac.x * VBW, y: frac.y * VBH }; }
+        function fmt(v, d) {
+            if (v == null || isNaN(v)) return "—";
+            return Number(v).toLocaleString("pt-BR", {
+                minimumFractionDigits: d, maximumFractionDigits: d,
+            });
+        }
+        function diameterToStroke(d) {
+            return Math.max(6, Math.min(26, 4 + (d || 4) * 1.35));
+        }
 
-  // ── Tooltip (popover flutuante) ───────────────────────────────────────────
-  function typeLabel(seg) {
-    if (seg.segment_type === "auto") return "Tomada d'água";
-    if (seg.is_pipe) return "Tubo";
-    return seg.kind || "Peça";
-  }
-  function row(k, v) {
-    return '<div class="uhr-tt-row"><span class="k">' + k +
-           '</span><span class="v">' + v + "</span></div>";
-  }
-  function tipHtml(seg) {
-    let r = "";
-    r += row("Posição", seg.position || "—");
-    // Material, diâmetro e comprimento só fazem sentido para tubos.
-    if (seg.is_pipe) {
-      r += row("Material", seg.material || "—");
-      if (seg.pipe_type) r += row("Tipo", seg.pipe_type);
-      r += row("Diâmetro", fmt(seg.diameter, 3) + " m");
-      if (seg.length != null) r += row("Comprimento", fmt(seg.length, 1) + " m");
-    }
-    if (seg.slope != null) r += row("Inclinação", fmt(seg.slope, 2) + " %");
-    if (seg.angle != null) r += row("Ângulo", fmt(seg.angle, 0) + " °");
-    r += row("Área", fmt(seg.area, 3) + " m²");
-    r += row("Velocidade", fmt(seg.velocity, 3) + " m/s");
-    r += row("Perda de carga", fmt(seg.head_loss, 4) + " m");
-    if (seg.cota && seg.cota > 0) r += row("Cota", fmt(seg.cota, 2) + " m");
-    return '<div class="uhr-tt-title">' + (seg.name || "Segmento") +
-           '<span class="uhr-tt-badge">' + typeLabel(seg) + "</span></div>" + r;
-  }
-  function showTip(seg) {
-    if (!tip) return;
-    tip.innerHTML = tipHtml(seg);
-    tip.style.display = "block";
-  }
-  function moveTip(e) {
-    if (!tip) return;
-    const r = stage.getBoundingClientRect();
-    let x = e.clientX - r.left + 14;
-    let y = e.clientY - r.top + 14;
-    const tw = tip.offsetWidth, th = tip.offsetHeight;
-    if (x + tw > r.width) x = e.clientX - r.left - tw - 14;
-    if (y + th > r.height) y = e.clientY - r.top - th - 14;
-    tip.style.left = Math.max(4, x) + "px";
-    tip.style.top = Math.max(4, y) + "px";
-  }
-  function hideTip() { if (tip) tip.style.display = "none"; }
-  function attachHover(g, seg) {
-    g.addEventListener("mouseenter", function () {
-      g.classList.add("is-active");
-      showTip(seg);
-    });
-    g.addEventListener("mousemove", moveTip);
-    g.addEventListener("mouseleave", function () {
-      g.classList.remove("is-active");
-      hideTip();
-    });
-  }
+        // ── Tooltip (popover flutuante) ───────────────────────────────────────────
+        function typeLabel(seg) {
+            if (seg.segment_type === "auto") return "Tomada d'água";
+            if (seg.is_pipe) return "Tubo";
+            return seg.kind || "Peça";
+        }
+        function row(k, v) {
+            return '<div class="uhr-tt-row"><span class="k">' + k +
+                '</span><span class="v">' + v + "</span></div>";
+        }
+        function tipHtml(seg) {
+            let r = "";
+            r += row("Posição", seg.position || "—");
+            // Material, diâmetro e comprimento só fazem sentido para tubos.
+            if (seg.is_pipe) {
+                r += row("Material", seg.material || "—");
+                if (seg.pipe_type) r += row("Tipo", seg.pipe_type);
+                r += row("Diâmetro", fmt(seg.diameter, 3) + " m");
+                if (seg.length != null) r += row("Comprimento", fmt(seg.length, 1) + " m");
+            }
+            if (seg.slope != null) r += row("Inclinação", fmt(seg.slope, 2) + " %");
+            if (seg.angle != null) r += row("Ângulo", fmt(seg.angle, 0) + " °");
+            r += row("Área", fmt(seg.area, 3) + " m²");
+            r += row("Velocidade", fmt(seg.velocity, 3) + " m/s");
+            r += row("Perda de carga", fmt(seg.head_loss, 4) + " m");
+            if (seg.cota && seg.cota > 0) r += row("Cota", fmt(seg.cota, 2) + " m");
+            return '<div class="uhr-tt-title">' + (seg.name || "Segmento") +
+                '<span class="uhr-tt-badge">' + typeLabel(seg) + "</span></div>" + r;
+        }
+        function showTip(seg) {
+            if (!tip) return;
+            tip.innerHTML = tipHtml(seg);
+            tip.style.display = "block";
+        }
+        function moveTip(e) {
+            if (!tip) return;
+            const r = stage.getBoundingClientRect();
+            let x = e.clientX - r.left + 14;
+            let y = e.clientY - r.top + 14;
+            const tw = tip.offsetWidth, th = tip.offsetHeight;
+            if (x + tw > r.width) x = e.clientX - r.left - tw - 14;
+            if (y + th > r.height) y = e.clientY - r.top - th - 14;
+            tip.style.left = Math.max(4, x) + "px";
+            tip.style.top = Math.max(4, y) + "px";
+        }
+        function hideTip() { if (tip) tip.style.display = "none"; }
+        function attachHover(g, seg) {
+            g.addEventListener("mouseenter", function () {
+                g.classList.add("is-active");
+                showTip(seg);
+            });
+            g.addEventListener("mousemove", moveTip);
+            g.addEventListener("mouseleave", function () {
+                g.classList.remove("is-active");
+                hideTip();
+            });
+        }
 
-  // ── Renderização ──────────────────────────────────────────────────────────
-  function drawTube(seg, a, b) {
-    const w = diameterToStroke(seg.diameter);
-    const c = MATERIAL_COLORS[seg.material] || DEFAULT_COLORS;
-    const d = "M " + a.x.toFixed(1) + " " + a.y.toFixed(1) +
-              " L " + b.x.toFixed(1) + " " + b.y.toFixed(1);
-    const g = el("g", { class: "uhr-seg" });
-    g.appendChild(el("path", { d: d, class: "uhr-pipe-edge", fill: "none",
-      stroke: c.edge, "stroke-width": w + 3, "stroke-linecap": "round", "stroke-opacity": 0.9 }));
-    g.appendChild(el("path", { d: d, class: "uhr-pipe-body", fill: "none",
-      stroke: c.body, "stroke-width": w, "stroke-linecap": "round" }));
-    g.appendChild(el("path", { d: d, class: "uhr-pipe-glow", fill: "none",
-      stroke: c.glow, "stroke-width": Math.max(2, w * 0.3), "stroke-linecap": "round", "stroke-opacity": 0.45 }));
-    g.appendChild(el("path", { d: d, class: "uhr-hit", fill: "none",
-      stroke: "transparent", "stroke-width": w + 12, "stroke-linecap": "round" }));
-    attachHover(g, seg);
-    gPipes.appendChild(g);
-  }
-  function drawFitting(seg, p) {
-    const c = MATERIAL_COLORS[seg.material] || DEFAULT_COLORS;
-    const r = seg.kind === "Bifurcação" ? 9 : 7;
-    const g = el("g", { class: "uhr-seg" });
-    g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r + 2, fill: c.edge, "fill-opacity": 0.9, class: "uhr-pipe-edge" }));
-    g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r, fill: c.body, class: "uhr-pipe-body" }));
-    g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r * 0.4, fill: c.glow, "fill-opacity": 0.5, class: "uhr-pipe-glow" }));
-    g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r + 8, fill: "transparent", class: "uhr-hit" }));
-    attachHover(g, seg);
-    gMarkers.appendChild(g);
-  }
-  function drawPowerhouseFallback(rect) {
-    const g = el("g", {});
-    g.appendChild(el("rect", { x: rect.x, y: rect.y, width: rect.w, height: rect.h, rx: 10,
-      fill: "#9aa7b2", "fill-opacity": 0.16, stroke: "#5b636e", "stroke-opacity": 0.3 }));
-    gPipes.insertBefore(g, gPipes.firstChild);
-  }
-  function placeCasaForca(rect) {
-    if (!casa) return;
-    const href = casa.getAttribute("href") || casa.getAttribute("xlink:href");
-    const apply = function () {
-      casa.setAttribute("x", rect.x);
-      casa.setAttribute("y", rect.y);
-      casa.setAttribute("width", rect.w);
-      casa.setAttribute("height", rect.h);
-      casa.style.display = "block";
-    };
-    const probe = new Image();
-    probe.onload = apply;
-    probe.onerror = function () { casa.style.display = "none"; };
-    probe.src = href;
-  }
+        // ── Renderização ──────────────────────────────────────────────────────────
+        function drawTube(seg, a, b) {
+            const w = diameterToStroke(seg.diameter);
+            const c = MATERIAL_COLORS[seg.material] || DEFAULT_COLORS;
+            const d = "M " + a.x.toFixed(1) + " " + a.y.toFixed(1) +
+                " L " + b.x.toFixed(1) + " " + b.y.toFixed(1);
+            const g = el("g", { class: "uhr-seg" });
+            g.appendChild(el("path", {
+                d: d, class: "uhr-pipe-edge", fill: "none",
+                stroke: c.edge, "stroke-width": w + 3, "stroke-linecap": "round", "stroke-opacity": 0.9
+            }));
+            g.appendChild(el("path", {
+                d: d, class: "uhr-pipe-body", fill: "none",
+                stroke: c.body, "stroke-width": w, "stroke-linecap": "round"
+            }));
+            g.appendChild(el("path", {
+                d: d, class: "uhr-pipe-glow", fill: "none",
+                stroke: c.glow, "stroke-width": Math.max(2, w * 0.3), "stroke-linecap": "round", "stroke-opacity": 0.45
+            }));
+            g.appendChild(el("path", {
+                d: d, class: "uhr-hit", fill: "none",
+                stroke: "transparent", "stroke-width": w + 12, "stroke-linecap": "round"
+            }));
+            attachHover(g, seg);
+            gPipes.appendChild(g);
+        }
+        function drawFitting(seg, p) {
+            const c = MATERIAL_COLORS[seg.material] || DEFAULT_COLORS;
+            const r = seg.kind === "Bifurcação" ? 9 : 7;
+            const g = el("g", { class: "uhr-seg" });
+            g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r + 2, fill: c.edge, "fill-opacity": 0.9, class: "uhr-pipe-edge" }));
+            g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r, fill: c.body, class: "uhr-pipe-body" }));
+            g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r * 0.4, fill: c.glow, "fill-opacity": 0.5, class: "uhr-pipe-glow" }));
+            g.appendChild(el("circle", { cx: p.x, cy: p.y, r: r + 8, fill: "transparent", class: "uhr-hit" }));
+            attachHover(g, seg);
+            gMarkers.appendChild(g);
+        }
+        function drawPowerhouseFallback(rect) {
+            const g = el("g", {});
+            g.appendChild(el("rect", {
+                x: rect.x, y: rect.y, width: rect.w, height: rect.h, rx: 10,
+                fill: "#9aa7b2", "fill-opacity": 0.16, stroke: "#5b636e", "stroke-opacity": 0.3
+            }));
+            gPipes.insertBefore(g, gPipes.firstChild);
+        }
+        function placeCasaForca(rect) {
+            if (!casa) return;
+            const href = casa.getAttribute("href") || casa.getAttribute("xlink:href");
+            const apply = function () {
+                casa.setAttribute("x", rect.x);
+                casa.setAttribute("y", rect.y);
+                casa.setAttribute("width", rect.w);
+                casa.setAttribute("height", rect.h);
+                casa.style.display = "block";
+            };
+            const probe = new Image();
+            probe.onload = apply;
+            probe.onerror = function () { casa.style.display = "none"; };
+            probe.src = href;
+        }
 
-  // ── Layout: integra cada tubo no seu ângulo REAL (run/drop a partir de
-  //    length + slope). A casa de força é posicionada dinamicamente no fim da
-  //    cadeia "Antes"; "Depois" parte da âncora de saída da casa de força.
-  //    Tomadas d'água (automáticas) NÃO são representadas.
-  const antesTubes = [], depoisTubes = [], antesFit = [], depoisFit = [];
-  for (const s of segments) {
-    if (s.segment_type === "auto") continue; // tomadas d'água não entram no esquema
-    if (s.position === "Antes") {
-      if (s.is_pipe) antesTubes.push(s);
-      else antesFit.push({ seg: s, after: antesTubes.length });
-    } else {
-      if (s.is_pipe) depoisTubes.push(s);
-      else depoisFit.push({ seg: s, after: depoisTubes.length });
-    }
-  }
+        // ── Layout: integra cada tubo no seu ângulo REAL (run/drop a partir de
+        //    length + slope). A casa de força é posicionada dinamicamente no fim da
+        //    cadeia "Antes"; "Depois" parte da âncora de saída da casa de força.
+        //    Tomadas d'água (automáticas) NÃO são representadas.
+        const antesTubes = [], depoisTubes = [], antesFit = [], depoisFit = [];
+        for (const s of segments) {
+            if (s.segment_type === "auto") continue; // tomadas d'água não entram no esquema
+            if (s.position === "Antes") {
+                if (s.is_pipe) antesTubes.push(s);
+                else antesFit.push({ seg: s, after: antesTubes.length });
+            } else {
+                if (s.is_pipe) depoisTubes.push(s);
+                else depoisFit.push({ seg: s, after: depoisTubes.length });
+            }
+        }
 
-  // Geometria de cada tubo: avanço horizontal (run) e variação de cota (drop),
-  // ambos em metros, derivados do COMPRIMENTO e da INCLINAÇÃO original (%).
-  // drop > 0 ⇒ o tubo DESCE (cota diminui no sentido do escoamento).
-  function geom(seg) {
-    const L = seg.length || 0;
-    const slope = seg.slope || 0;                 // % (queda por 100 m de horizontal)
-    const drop = (L * slope) / 100;               // variação vertical (m), com sinal
-    const run = Math.sqrt(Math.max(L * L - drop * drop, 0)) || L; // avanço horizontal (m)
-    return { run, drop };
-  }
+        // Geometria de cada tubo: avanço horizontal (run) e variação de cota (drop),
+        // ambos em metros, derivados do COMPRIMENTO e da INCLINAÇÃO original (%).
+        // drop > 0 ⇒ o tubo DESCE (cota diminui no sentido do escoamento).
+        function geom(seg) {
+            const L = seg.length || 0;
+            const slope = seg.slope || 0;                 // % (queda por 100 m de horizontal)
+            const drop = (L * slope) / 100;               // variação vertical (m), com sinal
+            const run = Math.sqrt(Math.max(L * L - drop * drop, 0)) || L; // avanço horizontal (m)
+            return { run, drop };
+        }
 
-  // Soma de run e drop de uma cadeia (em metros).
-  function chainTotals(tubes) {
-    let run = 0, drop = 0;
-    tubes.forEach((t) => { const g = geom(t); run += g.run; drop += g.drop; });
-    return { run, drop };
-  }
-  const totA = chainTotals(antesTubes);
-  const totB = chainTotals(depoisTubes);
+        // Soma de run e drop de uma cadeia (em metros).
+        function chainTotals(tubes) {
+            let run = 0, drop = 0;
+            tubes.forEach((t) => { const g = geom(t); run += g.run; drop += g.drop; });
+            return { run, drop };
+        }
+        const totA = chainTotals(antesTubes);
+        const totB = chainTotals(depoisTubes);
 
-  // ── Âncoras fixas: reservoirSup e reservoirInf são SEMPRE os extremos ──────
-  const P0 = pt(ANCHORS.reservoirSup); // início absoluto (cota mais alta)
-  const P3 = pt(ANCHORS.reservoirInf); // fim absoluto (cota mais baixa)
-  const cfW = ANCHORS.casaForca.w * VBW;
-  const cfAspect = 0.95; // proporção da imagem (fallback); ajuste à casa_forca.png real
-  const cfH = cfW * cfAspect;
-  const cf = ANCHORS.casaForca;
+        // ── Âncoras fixas: reservoirSup e reservoirInf são SEMPRE os extremos ──────
+        const P0 = pt(ANCHORS.reservoirSup); // início absoluto (cota mais alta)
+        const P3 = pt(ANCHORS.reservoirInf); // fim absoluto (cota mais baixa)
+        const cfW = ANCHORS.casaForca.w * VBW;
+        const cfAspect = 0.95; // proporção da imagem (fallback); ajuste à casa_forca.png real
+        const cfH = cfW * cfAspect;
+        const cf = ANCHORS.casaForca;
 
-  // A casa de força fica ENTRE os reservatórios, posicionada de forma DINÂMICA:
-  //  - X repartido pela proporção de avanço horizontal (run) de cada cadeia;
-  //  - Y repartido pela proporção de QUEDA DE COTA (drop) de cada cadeia, de
-  //    modo que a inclinação real seja respeitada. Como drop("Antes") e
-  //    drop("Depois") são positivos (descem), o trecho "Depois" sempre desce
-  //    em direção ao reservoirInf — nunca sobe.
-  const runA = Math.max(totA.run, 1e-6);
-  const runB = Math.max(totB.run, 1e-6);
-  const dropA = Math.abs(totA.drop);
-  const dropB = Math.abs(totB.drop);
-  const fracX = runA / (runA + runB);                          // partição horizontal
-  const fracY = (dropA + dropB) > 1e-9 ? dropA / (dropA + dropB) : fracX; // partição vertical
+        // A casa de força fica ENTRE os reservatórios, posicionada de forma DINÂMICA:
+        //  - X repartido pela proporção de avanço horizontal (run) de cada cadeia;
+        //  - Y repartido pela proporção de QUEDA DE COTA (drop) de cada cadeia, de
+        //    modo que a inclinação real seja respeitada. Como drop("Antes") e
+        //    drop("Depois") são positivos (descem), o trecho "Depois" sempre desce
+        //    em direção ao reservoirInf — nunca sobe.
+        const runA = Math.max(totA.run, 1e-6);
+        const runB = Math.max(totB.run, 1e-6);
+        const dropA = Math.abs(totA.drop);
+        const dropB = Math.abs(totB.drop);
+        const fracX = runA / (runA + runB);                          // partição horizontal
+        const fracY = (dropA + dropB) > 1e-9 ? dropA / (dropA + dropB) : fracX; // partição vertical
 
-  // Ponto de junção (elevação/posição da casa) sobre a reta P0→P3.
-  const J = {
-    x: P0.x + (P3.x - P0.x) * fracX,
-    y: P0.y + (P3.y - P0.y) * fracY,
-  };
+        // Ponto de junção (elevação/posição da casa) sobre a reta P0→P3.
+        const J = {
+            x: P0.x + (P3.x - P0.x) * fracX,
+            y: P0.y + (P3.y - P0.y) * fracY,
+        };
 
-  // A casa de força é centrada em J (fica visualmente entre as cadeias). As
-  // âncoras de entrada/saída são RELATIVAS à imagem (cf.inlet / cf.outlet).
-  let rect = {
-    x: J.x - 0.5 * cfW,
-    y: J.y - 0.5 * cfH,
-    w: cfW,
-    h: cfH,
-  };
+        // A casa de força é centrada em J (fica visualmente entre as cadeias). As
+        // âncoras de entrada/saída são RELATIVAS à imagem (cf.inlet / cf.outlet).
+        let rect = {
+            x: J.x - 0.5 * cfW,
+            y: J.y - 0.5 * cfH,
+            w: cfW,
+            h: cfH,
+        };
 
-  function inletOf(r)  { return { x: r.x + cf.inlet.fx * cfW,  y: r.y + cf.inlet.fy * cfH }; }
-  function outletOf(r) { return { x: r.x + cf.outlet.fx * cfW, y: r.y + cf.outlet.fy * cfH }; }
+        function inletOf(r) { return { x: r.x + cf.inlet.fx * cfW, y: r.y + cf.inlet.fy * cfH }; }
+        function outletOf(r) { return { x: r.x + cf.outlet.fx * cfW, y: r.y + cf.outlet.fy * cfH }; }
 
-  // Garante DESCIDA monotônica: a saída ("Depois") precisa ficar acima e à
-  // esquerda do reservoirInf para o trecho descer; a entrada ("Antes") precisa
-  // ficar abaixo de P0. Deslocamos o retângulo (sem deformá-lo) para satisfazer
-  // essas restrições, preservando as âncoras relativas à imagem.
-  const EPS = 6;
-  let out = outletOf(rect);
-  if (out.x > P3.x - EPS) rect.x += (P3.x - EPS) - out.x; // não passar do reservoirInf (X)
-  if (out.y > P3.y - EPS) rect.y += (P3.y - EPS) - out.y; // ficar acima do reservoirInf (Y)
-  let inl = inletOf(rect);
-  if (inl.y < P0.y + EPS) rect.y += (P0.y + EPS) - inl.y; // ficar abaixo do reservoirSup (Y)
+        // Garante DESCIDA monotônica: a saída ("Depois") precisa ficar acima e à
+        // esquerda do reservoirInf para o trecho descer; a entrada ("Antes") precisa
+        // ficar abaixo de P0. Deslocamos o retângulo (sem deformá-lo) para satisfazer
+        // essas restrições, preservando as âncoras relativas à imagem.
+        const EPS = 6;
+        let out = outletOf(rect);
+        if (out.x > P3.x - EPS) rect.x += (P3.x - EPS) - out.x; // não passar do reservoirInf (X)
+        if (out.y > P3.y - EPS) rect.y += (P3.y - EPS) - out.y; // ficar acima do reservoirInf (Y)
+        let inl = inletOf(rect);
+        if (inl.y < P0.y + EPS) rect.y += (P0.y + EPS) - inl.y; // ficar abaixo do reservoirSup (Y)
 
-  const inletPoint = inletOf(rect);
-  const outletPoint = outletOf(rect);
+        const inletPoint = inletOf(rect);
+        const outletPoint = outletOf(rect);
 
-  // ── Integração RELATIVA: distribui os nós entre start e end preservando as
-  //    proporções de run (horizontal) e de drop (vertical) de cada tubo. Os
-  //    EXTREMOS caem exatamente em start e end, então as âncoras (reservatórios
-  //    e casa de força) são sempre respeitadas, e cada segmento herda sua
-  //    inclinação relativa (segmentos com maior queda descem mais).
-  function integrate(tubes, start, end) {
-    const nodes = [start];
-    const n = tubes.length;
-    if (n === 0) { nodes.push(end); return nodes; }
-    const g = tubes.map(geom);
-    const totalRun = g.reduce((a, b) => a + b.run, 0) || n;
-    const totalDrop = g.reduce((a, b) => a + b.drop, 0);
-    let cr = 0, cd = 0;
-    for (let i = 0; i < n - 1; i++) {
-      cr += g[i].run; cd += g[i].drop;
-      const fx = cr / totalRun;                                            // progresso horizontal relativo
-      const fy = Math.abs(totalDrop) > 1e-9 ? cd / totalDrop : (i + 1) / n; // progresso vertical relativo (segue a cota)
-      nodes.push({
-        x: start.x + (end.x - start.x) * fx,
-        y: start.y + (end.y - start.y) * fy,
-      });
-    }
-    nodes.push(end); // último nó ancorado no destino
-    return nodes;
-  }
+        // ── Integração RELATIVA: distribui os nós entre start e end preservando as
+        //    proporções de run (horizontal) e de drop (vertical) de cada tubo. Os
+        //    EXTREMOS caem exatamente em start e end, então as âncoras (reservatórios
+        //    e casa de força) são sempre respeitadas, e cada segmento herda sua
+        //    inclinação relativa (segmentos com maior queda descem mais).
+        function integrate(tubes, start, end) {
+            const nodes = [start];
+            const n = tubes.length;
+            if (n === 0) { nodes.push(end); return nodes; }
+            const g = tubes.map(geom);
+            const totalRun = g.reduce((a, b) => a + b.run, 0) || n;
+            const totalDrop = g.reduce((a, b) => a + b.drop, 0);
+            let cr = 0, cd = 0;
+            for (let i = 0; i < n - 1; i++) {
+                cr += g[i].run; cd += g[i].drop;
+                const fx = cr / totalRun;                                            // progresso horizontal relativo
+                const fy = Math.abs(totalDrop) > 1e-9 ? cd / totalDrop : (i + 1) / n; // progresso vertical relativo (segue a cota)
+                nodes.push({
+                    x: start.x + (end.x - start.x) * fx,
+                    y: start.y + (end.y - start.y) * fy,
+                });
+            }
+            nodes.push(end); // último nó ancorado no destino
+            return nodes;
+        }
 
-  const nodesA = integrate(antesTubes, P0, inletPoint);   // Reservatório Superior → casa de força
-  const nodesB = integrate(depoisTubes, outletPoint, P3); // casa de força → Reservatório Inferior
+        const nodesA = integrate(antesTubes, P0, inletPoint);   // Reservatório Superior → casa de força
+        const nodesB = integrate(depoisTubes, outletPoint, P3); // casa de força → Reservatório Inferior
 
-  // 6) Desenha
-  drawPowerhouseFallback(rect);
-  antesTubes.forEach((t, i) => drawTube(t, nodesA[i], nodesA[i + 1]));
-  depoisTubes.forEach((t, i) => drawTube(t, nodesB[i], nodesB[i + 1]));
-  antesFit.forEach((f) => drawFitting(f.seg, nodesA[Math.min(f.after, nodesA.length - 1)]));
-  depoisFit.forEach((f) => drawFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)]));
-  placeCasaForca(rect);
+        // 6) Desenha
+        drawPowerhouseFallback(rect);
+        antesTubes.forEach((t, i) => drawTube(t, nodesA[i], nodesA[i + 1]));
+        depoisTubes.forEach((t, i) => drawTube(t, nodesB[i], nodesB[i + 1]));
+        antesFit.forEach((f) => drawFitting(f.seg, nodesA[Math.min(f.after, nodesA.length - 1)]));
+        depoisFit.forEach((f) => drawFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)]));
+        placeCasaForca(rect);
 
-  // Re-renderiza ícones quando o modal abre (garante render dentro do dialog).
-  const modal = document.getElementById("uhrSchemeModal");
-  const trigger = document.querySelector('[onclick*="uhrSchemeModal"]');
-  if (trigger && window.lucide) {
-    trigger.addEventListener("click", function () {
-      setTimeout(function () { window.lucide.createIcons(); }, 0);
-    });
-  }
-})();
-{% endraw %}
+        // Re-renderiza ícones quando o modal abre (garante render dentro do dialog).
+        const modal = document.getElementById("uhrSchemeModal");
+        const trigger = document.querySelector('[onclick*="uhrSchemeModal"]');
+        if (trigger && window.lucide) {
+            trigger.addEventListener("click", function () {
+                setTimeout(function () { window.lucide.createIcons(); }, 0);
+            });
+        }
+    })();
+    {% endraw %}
+</script>
+
+<!-- ── Esquema 3D da usina FB5 (Three.js) ─────────────────────────────────── -->
+<script>
+    {% raw %}
+    (function () {
+        "use strict";
+
+        const btn = document.getElementById("uhr3dBtn");
+        const modal = document.getElementById("uhr3dModal");
+        const stageEl = document.getElementById("uhr3dStage");
+        const tipEl = document.getElementById("uhr3dTooltip");
+        if (!btn || !modal || !stageEl) return;
+
+        // ══════════════════════════════════════════════════════════════════════════
+        // FATOR DE EXAGERO DO DIÂMETRO DOS TUBOS (apenas visual).
+        // O comprimento e a inclinação permanecem em escala real (1 unid. = 1 m).
+        // ══════════════════════════════════════════════════════════════════════════
+        const PIPE_DIAMETER_SCALE = 10;
+
+        // Opacidade dos rótulos
+        const LABEL_BG_OPACITY = 0.32;
+        const LABEL_TEXT_OPACITY = 0.9;
+
+        // Margem do enquadramento inicial (1.0 = bordas encostadas; >1 afasta)
+        const INITIAL_FIT_MARGIN = 1.04;
+
+        let initialized = false;
+        let renderer, scene, camera, controls, raycaster, mouse;
+        let hoverables = [], activeMesh = null;
+        let waterSurfaces = [];           // superfícies d'água animadas (ondulações)
+        const clock = new THREE.Clock();
+
+        btn.addEventListener("click", function () {
+            modal.showModal();
+            setTimeout(function () {
+                if (!initialized) { initialized = true; init(); }
+                else onResize();
+                if (window.lucide) window.lucide.createIcons();
+            }, 0);
+        });
+
+        const MAT_COLORS = { "Aço": 0x7c95a6, "Concreto": 0x929aa2 };
+        const DEFAULT_PIPE_COLOR = 0x7c95a6;
+
+        function fmt(v, d) {
+            if (v == null || isNaN(v)) return "—";
+            return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+        }
+
+        // Geometria REAL de cada tubo: run/drop em metros a partir de length + slope.
+        function geom(seg) {
+            const L = seg.length || 0;
+            const slope = seg.slope || 0;
+            const drop = (L * slope) / 100;
+            const run = Math.sqrt(Math.max(L * L - drop * drop, 0)) || L;
+            return { run: run, drop: drop };
+        }
+
+        function init() {
+            const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
+            const plant = window.UHR_PLANT || {};
+            const pipesAll = segments.filter(function (s) { return s.is_pipe; });
+
+            // ── Separa cadeias "Antes" e "Depois" da casa de máquinas ───────────────
+            const antes = [], depois = [], fitAntes = [], fitDepois = [];
+            for (const s of segments) {
+                if (s.segment_type === "auto") continue;
+                if (s.position === "Antes") {
+                    if (s.is_pipe) antes.push(s); else fitAntes.push({ seg: s, after: antes.length });
+                } else {
+                    if (s.is_pipe) depois.push(s); else fitDepois.push({ seg: s, after: depois.length });
+                }
+            }
+
+            // Totais preliminares (para dimensionar a casa antes do traçado)
+            let preRun = 0;
+            antes.concat(depois).forEach(function (t) { preRun += geom(t).run; });
+            preRun = Math.max(preRun, 1);
+
+            let dMax = 0;
+            pipesAll.forEach(function (p) { dMax = Math.max(dMax, p.diameter || 0); });
+            if (!dMax) dMax = 3;
+            const dMaxVis = dMax * PIPE_DIAMETER_SCALE;
+
+            // Dimensões da casa de máquinas
+            const phW = Math.max(preRun * 0.045, dMaxVis * 3.0);
+            const phD = Math.max(phW * 0.9, dMaxVis * 3.0);
+            const baseH = dMaxVis * 1.8;
+            const domeR = phW * 0.48;
+
+            // ── Traçado (1 unidade = 1 m; escalas H e V idênticas) ──────────────────
+            function chainNodes(tubes, start) {
+                const nodes = [start.clone()];
+                let p = start.clone();
+                tubes.forEach(function (t) {
+                    const g = geom(t);
+                    p = p.clone().add(new THREE.Vector3(g.run, -g.drop, 0));
+                    nodes.push(p);
+                });
+                return nodes;
+            }
+
+            const start = new THREE.Vector3(0, 0, 0);
+            const nodesA = chainNodes(antes, start);
+            const inletPoint = nodesA[nodesA.length - 1];                                  // lateral ESQUERDA inferior
+            const outletPoint = inletPoint.clone().add(new THREE.Vector3(phW, 0, 0));      // lateral DIREITA inferior
+            const nodesB = chainNodes(depois, outletPoint);
+            const endPt = nodesB[nodesB.length - 1];
+
+            const totalRun = Math.max(endPt.x - start.x, 1);
+            const totalDrop = Math.max(start.y - endPt.y, 1);
+            const sceneDepth = Math.max(totalRun * 0.3, 60);
+
+            // ── Cena / renderer ──────────────────────────────────────────────────────
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xcfe6f0);
+            scene.fog = new THREE.Fog(0xcfe6f0, totalRun * 2.5, totalRun * 8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(stageEl.clientWidth, stageEl.clientHeight);
+            stageEl.insertBefore(renderer.domElement, stageEl.firstChild);
+
+            // ── Reservatórios (dimensões antes da câmera, p/ enquadramento) ─────────
+            const resRx = Math.max(totalRun * 0.075, dMaxVis * 2.2);   // semi-eixo X (oval)
+            const resRz = Math.max(sceneDepth * 0.32, dMaxVis * 2.2);  // semi-eixo Z (oval)
+            const resDepth = Math.max(totalDrop * 0.05, dMaxVis * 1.2);
+
+            // ── Câmera com ZOOM INICIAL AJUSTADO: enquadra a extensão horizontal
+            //    completa (reservatório a reservatório) próxima às bordas ────────────
+            const xMin = start.x - resRx * 1.9;
+            const xMax = endPt.x + resRx * 1.9;
+            const sceneW = xMax - xMin;
+            const sceneH = totalDrop + resDepth * 3;
+            const center = new THREE.Vector3((xMin + xMax) / 2, (start.y + endPt.y) / 2, 0);
+
+            camera = new THREE.PerspectiveCamera(45, stageEl.clientWidth / stageEl.clientHeight, 0.1, totalRun * 20);
+            const vfov = THREE.MathUtils.degToRad(camera.fov);
+            const aspect = stageEl.clientWidth / Math.max(stageEl.clientHeight, 1);
+            const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
+            const distW = (sceneW / 2) / Math.tan(hfov / 2);   // distância p/ caber na largura
+            const distH = (sceneH / 2) / Math.tan(vfov / 2);   // distância p/ caber na altura
+            const dist = Math.max(distW, distH) * INITIAL_FIT_MARGIN;
+            camera.position.set(center.x, center.y + dist * 0.28, dist);
+            camera.lookAt(center);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.copy(center);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.maxDistance = totalRun * 6;
+            controls.update();
+
+            scene.add(new THREE.HemisphereLight(0xe8f4fa, 0x8fa3ad, 0.9));
+            const sun = new THREE.DirectionalLight(0xfff4dd, 0.9);
+            sun.position.set(center.x - totalRun * 0.6, center.y + totalDrop * 2.2, totalRun * 0.8);
+            scene.add(sun);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // ── Reservatórios OVAIS, translúcidos, com aparência de água ────────────
+            // Sem concreto: apenas uma casca translúcida (parede + fundo) delimitando a
+            // profundidade, um volume d'água interno e uma SUPERFÍCIE ONDULADA animada.
+            const shellMat = new THREE.MeshStandardMaterial({
+                color: 0x9fd4e6, transparent: true, opacity: 0.18,
+                roughness: 0.1, metalness: 0.05, side: THREE.DoubleSide, depthWrite: false,
+            });
+            const waterBodyMat = new THREE.MeshStandardMaterial({
+                color: 0x2f8fb5, transparent: true, opacity: 0.5,
+                roughness: 0.15, metalness: 0.1, depthWrite: false,
+            });
+            const waterSurfMat = new THREE.MeshStandardMaterial({
+                color: 0x59c1e0, transparent: true, opacity: 0.75,
+                roughness: 0.05, metalness: 0.25, side: THREE.DoubleSide,
+            });
+
+            function reservoirPool(cx, topY, rx, depth, rz, label) {
+                const grp = new THREE.Group();
+
+                // casca lateral oval (cilindro aberto, escalado em X/Z → elipse)
+                const shell = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.82, depth, 48, 1, true), shellMat);
+                shell.scale.set(rx, 1, rz);
+                shell.position.set(cx, topY - depth / 2, 0);
+                grp.add(shell);
+
+                // fundo translúcido (elipse)
+                const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.82, 48), shellMat);
+                bottom.rotation.x = -Math.PI / 2;
+                bottom.scale.set(rx, rz, 1);
+                bottom.position.set(cx, topY - depth, 0);
+                grp.add(bottom);
+
+                // volume d'água (preenche ~85% da profundidade)
+                const waterH = depth * 0.85;
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, waterH, 48, 1, false), waterBodyMat);
+                body.scale.set(rx, 1, rz);
+                body.position.set(cx, topY - depth + waterH / 2, 0);
+                grp.add(body);
+
+                // superfície ondulada (malha circular com vértices animados por seno)
+                const surfGeo = new THREE.CircleGeometry(0.97, 48, 0, Math.PI * 2);
+                const surf = new THREE.Mesh(surfGeo, waterSurfMat);
+                surf.rotation.x = -Math.PI / 2;
+                surf.scale.set(rx, rz, 1);
+                surf.position.set(cx, topY - depth + waterH, 0);
+                // guarda posições-base para a animação de ondas
+                const pos = surfGeo.attributes.position;
+                surf.userData.base = pos.array.slice();
+                surf.userData.amp = Math.min(depth * 0.05, dMaxVis * 0.12); // amplitude (m)
+                surf.userData.phase = Math.random() * Math.PI * 2;
+                waterSurfaces.push(surf);
+                grp.add(surf);
+
+                grp.add(makeLabel(label, cx, topY + dMaxVis * 1.6, 0, totalRun));
+                scene.add(grp);
+                return grp;
+            }
+
+            reservoirPool(start.x - resRx * 0.9, start.y + resDepth * 0.45, resRx, resDepth, resRz, "Reservatório Superior");
+            reservoirPool(endPt.x + resRx * 0.9, endPt.y + resDepth * 0.45, resRx, resDepth, resRz, "Reservatório Inferior");
+
+            // ── Casa de máquinas (base de concreto + cúpula de vidro + gerador) ─────
+            const phInfo = {
+                __powerhouse: true,
+                name: "Casa de Máquinas",
+                power_turbine: plant.power_turbine,
+                power_ratio: plant.power_ratio,
+                head_loss_total: plant.head_loss_total,
+                cost_total: plant.cost_total,
+                gross_head: totalDrop,
+                n_antes: antes.length,
+                n_depois: depois.length,
+            };
+
+            (function powerhouse() {
+                const grp = new THREE.Group();
+                const cxIn = inletPoint.x, cxOut = outletPoint.x;
+                const cx = (cxIn + cxOut) / 2;
+                const pipeY = inletPoint.y;
+                const baseBottom = pipeY - dMaxVis * 0.9;
+                const baseTop = baseBottom + baseH;
+
+                const concreteMat = new THREE.MeshStandardMaterial({ color: 0x4d6b7c, roughness: 0.85, metalness: 0.05 });
+                const concreteDarkMat = new THREE.MeshStandardMaterial({ color: 0x3a5364, roughness: 0.9, metalness: 0.05 });
+                const steelMat = new THREE.MeshStandardMaterial({ color: 0xc7ccd1, metalness: 0.85, roughness: 0.25 });
+                const steelDarkMat = new THREE.MeshStandardMaterial({ color: 0x8a949c, metalness: 0.8, roughness: 0.35 });
+                const copperMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.7, roughness: 0.3 });
+                const coilMat = new THREE.MeshStandardMaterial({ color: 0xc9a86a, metalness: 0.5, roughness: 0.45 });
+                const glassMat = new THREE.MeshStandardMaterial({
+                    color: 0xa9d6e5, transparent: true, opacity: 0.28,
+                    roughness: 0.08, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false,
+                });
+                const frameMat = new THREE.MeshBasicMaterial({ color: 0x7fa8b8, wireframe: true, transparent: true, opacity: 0.5 });
+
+                // 1) Base de concreto — HOVERABLE (dialog da casa de máquinas)
+                const base = new THREE.Mesh(new THREE.BoxGeometry(phW, baseH, phD), concreteMat);
+                base.position.set(cx, baseBottom + baseH / 2, 0);
+                base.userData.seg = phInfo;
+                hoverables.push(base);
+                grp.add(base);
+                const slab = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.08, baseH * 0.12, phD * 1.08), concreteDarkMat);
+                slab.position.set(cx, baseTop + baseH * 0.06, 0);
+                grp.add(slab);
+
+                // 2) Cúpula de vidro — HOVERABLE (dialog da casa de máquinas)
+                const domeGeo = new THREE.SphereGeometry(domeR, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                const dome = new THREE.Mesh(domeGeo, glassMat);
+                dome.position.set(cx, baseTop + baseH * 0.12, 0);
+                dome.userData.seg = phInfo;
+                hoverables.push(dome);
+                grp.add(dome);
+                const frame = new THREE.Mesh(new THREE.SphereGeometry(domeR * 1.002, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), frameMat);
+                frame.position.copy(dome.position);
+                grp.add(frame);
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(domeR * 0.12, domeR * 0.16, domeR * 0.08, 16), steelDarkMat);
+                cap.position.set(cx, dome.position.y + domeR, 0);
+                grp.add(cap);
+
+                // 3) Gerador (bobinas de cobre + carcaça)
+                const genY = baseTop + baseH * 0.12 + domeR * 0.42;
+                const genR = domeR * 0.34;
+                const stator = new THREE.Mesh(new THREE.CylinderGeometry(genR, genR, genR * 1.1, 24), coilMat);
+                stator.position.set(cx, genY, 0);
+                grp.add(stator);
+                const rotor = new THREE.Mesh(new THREE.CylinderGeometry(genR * 0.55, genR * 0.55, genR * 1.35, 20), copperMat);
+                rotor.position.set(cx, genY, 0);
+                grp.add(rotor);
+                const capT = new THREE.Mesh(new THREE.CylinderGeometry(genR * 1.05, genR * 1.05, genR * 0.14, 24), steelMat);
+                capT.position.set(cx, genY + genR * 0.62, 0);
+                const capB = capT.clone(); capB.position.y = genY - genR * 0.62;
+                grp.add(capT, capB);
+
+                // 4) Eixo vertical
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(genR * 0.16, genR * 0.16, (genY - pipeY), 12), steelMat);
+                shaft.position.set(cx, (genY + pipeY) / 2, 0);
+                grp.add(shaft);
+
+                // 5) Voluta da turbina + troncos cônicos de conexão
+                const rIn = pipeRadius(antes.length ? antes[antes.length - 1] : { diameter: dMax });
+                const volute = new THREE.Mesh(new THREE.SphereGeometry(rIn * 1.7, 20, 16), steelDarkMat);
+                volute.position.set(cx, pipeY, 0);
+                volute.userData.seg = phInfo;
+                hoverables.push(volute);
+                grp.add(volute);
+                const coneIn = new THREE.Mesh(new THREE.CylinderGeometry(rIn * 1.15, rIn * 1.45, phW * 0.28, 18), steelMat);
+                coneIn.rotation.z = Math.PI / 2;
+                coneIn.position.set(cxIn + phW * 0.16, pipeY, 0);
+                grp.add(coneIn);
+                const coneOut = new THREE.Mesh(new THREE.CylinderGeometry(rIn * 1.45, rIn * 1.15, phW * 0.28, 18), steelMat);
+                coneOut.rotation.z = Math.PI / 2;
+                coneOut.position.set(cxOut - phW * 0.16, pipeY, 0);
+                grp.add(coneOut);
+
+                grp.add(makeLabel("Casa de Máquinas", cx, dome.position.y + domeR + dMaxVis * 0.9, 0, totalRun));
+                scene.add(grp);
+            })();
+
+            // ── Tubulações ───────────────────────────────────────────────────────────
+            function pipeRadius(seg) {
+                return Math.max(((seg.diameter || 1) / 2) * PIPE_DIAMETER_SCALE, totalRun * 0.002);
+            }
+
+            function addPipe(seg, a, b) {
+                const dir = new THREE.Vector3().subVectors(b, a);
+                const len = dir.length();
+                if (len <= 0) return;
+                const radius = pipeRadius(seg);
+                const geo = new THREE.CylinderGeometry(radius, radius, len, 24, 1);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: MAT_COLORS[seg.material] || DEFAULT_PIPE_COLOR,
+                    metalness: seg.material === "Aço" ? 0.55 : 0.05,
+                    roughness: seg.material === "Aço" ? 0.35 : 0.8,
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(a).add(dir.clone().multiplyScalar(0.5));
+                mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+                mesh.userData.seg = seg;
+                scene.add(mesh);
+                hoverables.push(mesh);
+                [a, b].forEach(function (p) {
+                    const ring = new THREE.Mesh(
+                        new THREE.TorusGeometry(radius * 1.12, radius * 0.12, 10, 24),
+                        new THREE.MeshStandardMaterial({ color: 0x3f5260, metalness: 0.5, roughness: 0.5 })
+                    );
+                    ring.position.copy(p);
+                    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
+                    scene.add(ring);
+                });
+            }
+
+            function addFitting(seg, p, baseR) {
+                const r = Math.max(baseR * 1.25, totalRun * 0.003);
+                const mesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(r, 20, 20),
+                    new THREE.MeshStandardMaterial({ color: 0x3f5260, metalness: 0.5, roughness: 0.45 })
+                );
+                mesh.position.copy(p);
+                mesh.userData.seg = seg;
+                scene.add(mesh);
+                hoverables.push(mesh);
+            }
+
+            antes.forEach(function (t, i) { addPipe(t, nodesA[i], nodesA[i + 1]); });
+            depois.forEach(function (t, i) { addPipe(t, nodesB[i], nodesB[i + 1]); });
+            fitAntes.forEach(function (f) {
+                addFitting(f.seg, nodesA[Math.min(f.after, nodesA.length - 1)], dMaxVis / 2);
+            });
+            fitDepois.forEach(function (f) {
+                addFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)], dMaxVis / 2);
+            });
+
+            // ── Cota de referência ───────────────────────────────────────────────────
+            scene.add(makeLabel("Queda: " + fmt(totalDrop, 1) + " m  |  Avanço: " + fmt(totalRun, 1) + " m",
+                center.x, start.y + totalDrop * 0.28, 0, totalRun));
+
+            // ── Rótulos (sprites translúcidos) ──────────────────────────────────────
+            function makeLabel(text, x, y, z, scaleRef) {
+                const cvs = document.createElement("canvas");
+                const ctx = cvs.getContext("2d");
+                const fs = 42;
+                ctx.font = "600 " + fs + "px Inter, sans-serif";
+                const w = Math.ceil(ctx.measureText(text).width) + 36;
+                cvs.width = w; cvs.height = fs + 28;
+                const c2 = cvs.getContext("2d");
+                c2.fillStyle = "rgba(20,32,40," + LABEL_BG_OPACITY + ")";
+                c2.beginPath();
+                if (c2.roundRect) c2.roundRect(0, 0, cvs.width, cvs.height, 12); else c2.rect(0, 0, cvs.width, cvs.height);
+                c2.fill();
+                c2.font = "600 " + fs + "px Inter, sans-serif";
+                c2.fillStyle = "rgba(234,243,249," + LABEL_TEXT_OPACITY + ")";
+                c2.textBaseline = "middle";
+                c2.fillText(text, 18, cvs.height / 2);
+                const tex = new THREE.CanvasTexture(cvs);
+                tex.minFilter = THREE.LinearFilter;
+                const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+                const sw = scaleRef * 0.14 * (cvs.width / 300);
+                spr.scale.set(sw, sw * cvs.height / cvs.width, 1);
+                spr.position.set(x, y, z);
+                return spr;
+            }
+
+            // ── Tooltip por raycasting (tubos, peças E casa de máquinas) ────────────
+            function rowHtml(k, v) {
+                return '<div class="uhr-tt-row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
+            }
+            function tipHtml(seg) {
+                // Dialog especial da Casa de Máquinas
+                if (seg.__powerhouse) {
+                    let r = '<div class="uhr-tt-title">' + seg.name +
+                        '<span class="uhr-tt-badge">Usina</span></div>';
+                    if (seg.power_turbine) r += rowHtml("Potência/turbina", fmt(seg.power_turbine, 1) + " MW");
+                    if (seg.power_ratio) r += rowHtml("Relação Pt/Pb", fmt(seg.power_ratio, 3));
+                    r += rowHtml("Queda bruta", fmt(seg.gross_head, 1) + " m");
+                    if (seg.head_loss_total) r += rowHtml("Perda de carga total", fmt(seg.head_loss_total, 4) + " m");
+                    r += rowHtml("Tubos a montante", seg.n_antes);
+                    r += rowHtml("Tubos a jusante", seg.n_depois);
+                    if (seg.cost_total) r += rowHtml("Custo total", fmt(seg.cost_total, 1) + " mi R$");
+                    return r;
+                }
+                let r = '<div class="uhr-tt-title">' + (seg.name || "Segmento") +
+                    '<span class="uhr-tt-badge">' + (seg.is_pipe ? "Tubo" : (seg.kind || "Peça")) + "</span></div>";
+                r += rowHtml("Posição", seg.position || "—");
+                if (seg.is_pipe) {
+                    r += rowHtml("Material", seg.material || "—");
+                    r += rowHtml("Diâmetro", fmt(seg.diameter, 3) + " m");
+                    if (seg.length != null) r += rowHtml("Comprimento", fmt(seg.length, 1) + " m");
+                    if (seg.slope != null) r += rowHtml("Inclinação", fmt(seg.slope, 2) + " %");
+                }
+                r += rowHtml("Velocidade", fmt(seg.velocity, 3) + " m/s");
+                r += rowHtml("Perda de carga", fmt(seg.head_loss, 4) + " m");
+                return r;
+            }
+
+            renderer.domElement.addEventListener("mousemove", function (e) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(hoverables, false);
+                if (hits.length) {
+                    const mesh = hits[0].object;
+                    if (activeMesh !== mesh) {
+                        if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                        activeMesh = mesh;
+                        if (mesh.material.emissive) mesh.material.emissive.setHex(0x224455);
+                        tipEl.innerHTML = tipHtml(mesh.userData.seg);
+                    }
+                    tipEl.style.display = "block";
+                    let tx = e.clientX - rect.left + 14, ty = e.clientY - rect.top + 14;
+                    if (tx + tipEl.offsetWidth > rect.width) tx = e.clientX - rect.left - tipEl.offsetWidth - 14;
+                    if (ty + tipEl.offsetHeight > rect.height) ty = e.clientY - rect.top - tipEl.offsetHeight - 14;
+                    tipEl.style.left = Math.max(4, tx) + "px";
+                    tipEl.style.top = Math.max(4, ty) + "px";
+                    renderer.domElement.style.cursor = "pointer";
+                } else {
+                    if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                    activeMesh = null;
+                    tipEl.style.display = "none";
+                    renderer.domElement.style.cursor = "";
+                }
+            });
+            renderer.domElement.addEventListener("mouseleave", function () {
+                tipEl.style.display = "none";
+                if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                activeMesh = null;
+            });
+
+            // ── Loop de animação (ondulações da água) / resize ──────────────────────
+            (function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                // ondas: desloca cada vértice da superfície com dois senos defasados
+                waterSurfaces.forEach(function (surf) {
+                    const pos = surf.geometry.attributes.position;
+                    const base = surf.userData.base;
+                    const amp = surf.userData.amp;
+                    const ph = surf.userData.phase;
+                    for (let i = 0; i < pos.count; i++) {
+                        const bx = base[i * 3], by = base[i * 3 + 1];
+                        pos.setZ(i,
+                            amp * Math.sin(bx * 5.0 + t * 1.6 + ph) * 0.6 +
+                            amp * Math.sin(by * 7.0 - t * 1.1 + ph) * 0.4
+                        );
+                    }
+                    pos.needsUpdate = true;
+                    surf.geometry.computeVertexNormals();
+                });
+                controls.update();
+                renderer.render(scene, camera);
+            })();
+
+            if (window.ResizeObserver) new ResizeObserver(onResize).observe(stageEl);
+            window.addEventListener("resize", onResize);
+        }
+
+        function onResize() {
+            if (!renderer || !camera) return;
+            const w = stageEl.clientWidth, h = stageEl.clientHeight;
+            if (!w || !h) return;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+    })();
+    {% endraw %}
 </script>
 {% endblock %}
