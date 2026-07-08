@@ -479,11 +479,23 @@
                 <i data-lucide="box" class="w-4 h-4 text-secondary"></i>
                 <span class="font-semibold text-sm">Esquema 3D da usina FB5 — representação em escala (1 unid. = 1 m, escalas H e V idênticas)</span>
             </div>
-            <form method="dialog">
-                <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </form>
+            <div class="flex items-center gap-2">
+                <div class="join">
+                    <button type="button" id="uhr3dModeTurbine" class="btn btn-xs join-item gap-1" data-mode="turbine">
+                        <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+                        Turbinamento
+                    </button>
+                    <button type="button" id="uhr3dModePump" class="btn btn-xs join-item gap-1" data-mode="pump">
+                        <i data-lucide="arrow-up-circle" class="w-3.5 h-3.5"></i>
+                        Bombeamento
+                    </button>
+                </div>
+                <form method="dialog">
+                    <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Stage 3D -->
@@ -495,6 +507,10 @@
                     <div class="lg-row"><span class="lg-swatch" style="background:#929aa2"></span> Tubulação — Concreto</div>
                     <div class="lg-row"><span class="lg-swatch" style="background:#4aa3c7"></span> Reservatórios</div>
                     <div class="lg-row"><span class="lg-swatch" style="background:#c8b89a"></span> Casa de máquinas</div>
+                    <div class="lg-row" id="uhr3dModeIndicator" style="margin-top:0.2rem; font-weight:600;">
+                        <i data-lucide="waves" class="w-3 h-3"></i>
+                        <span id="uhr3dModeLabel">Modo</span>
+                    </div>
                 </div>
             </div>
             <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
@@ -533,21 +549,16 @@
         const VBW = 1000, VBH = 472; // deve casar com o viewBox e o aspect-ratio do stage
 
         // ── Âncoras de calibração (frações 0..1 do viewBox) ───────────────────────
-        // Ajuste estes valores para alinhar o desenho à imagem fundo_uhr.png /
-        // casa_forca.png. Todos os pontos são frações da largura (x) e altura (y).
         const ANCHORS = {
-            reservoirSup: { x: 0.355, y: 0.585 }, // origem do traçado (saída do Reservatório Superior)
-            reservoirInf: { x: 0.825, y: 0.875 }, // chegada no Reservatório Inferior
-            // A casa de força é DINÂMICA (posicionada pelo fim da cadeia "Antes").
-            // Aqui ficam só o tamanho e as âncoras de entrada/saída RELATIVAS à imagem.
+            reservoirSup: { x: 0.355, y: 0.585 },
+            reservoirInf: { x: 0.825, y: 0.875 },
             casaForca: {
                 w: 0.07,
-                inlet: { fx: 0.02, fy: 0.80 }, // entrada: onde a tubulação "Antes" encosta
-                outlet: { fx: 0.98, fy: 0.85 }, // saída: de onde parte a tubulação "Depois"
+                inlet: { fx: 0.02, fy: 0.80 },
+                outlet: { fx: 0.98, fy: 0.85 },
             },
         };
 
-        // ── Cores dos materiais (gradiente faux-3D via 3 traços empilhados) ───────
         const MATERIAL_COLORS = {
             "Aço": { edge: "#3f5260", body: "#7c95a6", glow: "#eaf3f9" },
             "Concreto": { edge: "#54585e", body: "#929aa2", glow: "#e9ecef" },
@@ -575,7 +586,6 @@
             return;
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
         function el(tag, attrs) {
             const node = document.createElementNS(SVG_NS, tag);
             for (const k in attrs) node.setAttribute(k, attrs[k]);
@@ -592,7 +602,6 @@
             return Math.max(6, Math.min(26, 4 + (d || 4) * 1.35));
         }
 
-        // ── Tooltip (popover flutuante) ───────────────────────────────────────────
         function typeLabel(seg) {
             if (seg.segment_type === "auto") return "Tomada d'água";
             if (seg.is_pipe) return "Tubo";
@@ -605,7 +614,6 @@
         function tipHtml(seg) {
             let r = "";
             r += row("Posição", seg.position || "—");
-            // Material, diâmetro e comprimento só fazem sentido para tubos.
             if (seg.is_pipe) {
                 r += row("Material", seg.material || "—");
                 if (seg.pipe_type) r += row("Tipo", seg.pipe_type);
@@ -650,7 +658,6 @@
             });
         }
 
-        // ── Renderização ──────────────────────────────────────────────────────────
         function drawTube(seg, a, b) {
             const w = diameterToStroke(seg.diameter);
             const c = MATERIAL_COLORS[seg.material] || DEFAULT_COLORS;
@@ -711,13 +718,9 @@
             probe.src = href;
         }
 
-        // ── Layout: integra cada tubo no seu ângulo REAL (run/drop a partir de
-        //    length + slope). A casa de força é posicionada dinamicamente no fim da
-        //    cadeia "Antes"; "Depois" parte da âncora de saída da casa de força.
-        //    Tomadas d'água (automáticas) NÃO são representadas.
         const antesTubes = [], depoisTubes = [], antesFit = [], depoisFit = [];
         for (const s of segments) {
-            if (s.segment_type === "auto") continue; // tomadas d'água não entram no esquema
+            if (s.segment_type === "auto") continue;
             if (s.position === "Antes") {
                 if (s.is_pipe) antesTubes.push(s);
                 else antesFit.push({ seg: s, after: antesTubes.length });
@@ -727,18 +730,14 @@
             }
         }
 
-        // Geometria de cada tubo: avanço horizontal (run) e variação de cota (drop),
-        // ambos em metros, derivados do COMPRIMENTO e da INCLINAÇÃO original (%).
-        // drop > 0 ⇒ o tubo DESCE (cota diminui no sentido do escoamento).
         function geom(seg) {
             const L = seg.length || 0;
-            const slope = seg.slope || 0;                 // % (queda por 100 m de horizontal)
-            const drop = (L * slope) / 100;               // variação vertical (m), com sinal
-            const run = Math.sqrt(Math.max(L * L - drop * drop, 0)) || L; // avanço horizontal (m)
+            const slope = seg.slope || 0;
+            const drop = (L * slope) / 100;
+            const run = Math.sqrt(Math.max(L * L - drop * drop, 0)) || L;
             return { run, drop };
         }
 
-        // Soma de run e drop de uma cadeia (em metros).
         function chainTotals(tubes) {
             let run = 0, drop = 0;
             tubes.forEach((t) => { const g = geom(t); run += g.run; drop += g.drop; });
@@ -747,35 +746,25 @@
         const totA = chainTotals(antesTubes);
         const totB = chainTotals(depoisTubes);
 
-        // ── Âncoras fixas: reservoirSup e reservoirInf são SEMPRE os extremos ──────
-        const P0 = pt(ANCHORS.reservoirSup); // início absoluto (cota mais alta)
-        const P3 = pt(ANCHORS.reservoirInf); // fim absoluto (cota mais baixa)
+        const P0 = pt(ANCHORS.reservoirSup);
+        const P3 = pt(ANCHORS.reservoirInf);
         const cfW = ANCHORS.casaForca.w * VBW;
-        const cfAspect = 0.95; // proporção da imagem (fallback); ajuste à casa_forca.png real
+        const cfAspect = 0.95;
         const cfH = cfW * cfAspect;
         const cf = ANCHORS.casaForca;
 
-        // A casa de força fica ENTRE os reservatórios, posicionada de forma DINÂMICA:
-        //  - X repartido pela proporção de avanço horizontal (run) de cada cadeia;
-        //  - Y repartido pela proporção de QUEDA DE COTA (drop) de cada cadeia, de
-        //    modo que a inclinação real seja respeitada. Como drop("Antes") e
-        //    drop("Depois") são positivos (descem), o trecho "Depois" sempre desce
-        //    em direção ao reservoirInf — nunca sobe.
         const runA = Math.max(totA.run, 1e-6);
         const runB = Math.max(totB.run, 1e-6);
         const dropA = Math.abs(totA.drop);
         const dropB = Math.abs(totB.drop);
-        const fracX = runA / (runA + runB);                          // partição horizontal
-        const fracY = (dropA + dropB) > 1e-9 ? dropA / (dropA + dropB) : fracX; // partição vertical
+        const fracX = runA / (runA + runB);
+        const fracY = (dropA + dropB) > 1e-9 ? dropA / (dropA + dropB) : fracX;
 
-        // Ponto de junção (elevação/posição da casa) sobre a reta P0→P3.
         const J = {
             x: P0.x + (P3.x - P0.x) * fracX,
             y: P0.y + (P3.y - P0.y) * fracY,
         };
 
-        // A casa de força é centrada em J (fica visualmente entre as cadeias). As
-        // âncoras de entrada/saída são RELATIVAS à imagem (cf.inlet / cf.outlet).
         let rect = {
             x: J.x - 0.5 * cfW,
             y: J.y - 0.5 * cfH,
@@ -786,25 +775,16 @@
         function inletOf(r) { return { x: r.x + cf.inlet.fx * cfW, y: r.y + cf.inlet.fy * cfH }; }
         function outletOf(r) { return { x: r.x + cf.outlet.fx * cfW, y: r.y + cf.outlet.fy * cfH }; }
 
-        // Garante DESCIDA monotônica: a saída ("Depois") precisa ficar acima e à
-        // esquerda do reservoirInf para o trecho descer; a entrada ("Antes") precisa
-        // ficar abaixo de P0. Deslocamos o retângulo (sem deformá-lo) para satisfazer
-        // essas restrições, preservando as âncoras relativas à imagem.
         const EPS = 6;
         let out = outletOf(rect);
-        if (out.x > P3.x - EPS) rect.x += (P3.x - EPS) - out.x; // não passar do reservoirInf (X)
-        if (out.y > P3.y - EPS) rect.y += (P3.y - EPS) - out.y; // ficar acima do reservoirInf (Y)
+        if (out.x > P3.x - EPS) rect.x += (P3.x - EPS) - out.x;
+        if (out.y > P3.y - EPS) rect.y += (P3.y - EPS) - out.y;
         let inl = inletOf(rect);
-        if (inl.y < P0.y + EPS) rect.y += (P0.y + EPS) - inl.y; // ficar abaixo do reservoirSup (Y)
+        if (inl.y < P0.y + EPS) rect.y += (P0.y + EPS) - inl.y;
 
         const inletPoint = inletOf(rect);
         const outletPoint = outletOf(rect);
 
-        // ── Integração RELATIVA: distribui os nós entre start e end preservando as
-        //    proporções de run (horizontal) e de drop (vertical) de cada tubo. Os
-        //    EXTREMOS caem exatamente em start e end, então as âncoras (reservatórios
-        //    e casa de força) são sempre respeitadas, e cada segmento herda sua
-        //    inclinação relativa (segmentos com maior queda descem mais).
         function integrate(tubes, start, end) {
             const nodes = [start];
             const n = tubes.length;
@@ -815,21 +795,20 @@
             let cr = 0, cd = 0;
             for (let i = 0; i < n - 1; i++) {
                 cr += g[i].run; cd += g[i].drop;
-                const fx = cr / totalRun;                                            // progresso horizontal relativo
-                const fy = Math.abs(totalDrop) > 1e-9 ? cd / totalDrop : (i + 1) / n; // progresso vertical relativo (segue a cota)
+                const fx = cr / totalRun;
+                const fy = Math.abs(totalDrop) > 1e-9 ? cd / totalDrop : (i + 1) / n;
                 nodes.push({
                     x: start.x + (end.x - start.x) * fx,
                     y: start.y + (end.y - start.y) * fy,
                 });
             }
-            nodes.push(end); // último nó ancorado no destino
+            nodes.push(end);
             return nodes;
         }
 
-        const nodesA = integrate(antesTubes, P0, inletPoint);   // Reservatório Superior → casa de força
-        const nodesB = integrate(depoisTubes, outletPoint, P3); // casa de força → Reservatório Inferior
+        const nodesA = integrate(antesTubes, P0, inletPoint);
+        const nodesB = integrate(depoisTubes, outletPoint, P3);
 
-        // 6) Desenha
         drawPowerhouseFallback(rect);
         antesTubes.forEach((t, i) => drawTube(t, nodesA[i], nodesA[i + 1]));
         depoisTubes.forEach((t, i) => drawTube(t, nodesB[i], nodesB[i + 1]));
@@ -837,7 +816,6 @@
         depoisFit.forEach((f) => drawFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)]));
         placeCasaForca(rect);
 
-        // Re-renderiza ícones quando o modal abre (garante render dentro do dialog).
         const modal = document.getElementById("uhrSchemeModal");
         const trigger = document.querySelector('[onclick*="uhrSchemeModal"]');
         if (trigger && window.lucide) {
@@ -859,32 +837,55 @@
         const modal = document.getElementById("uhr3dModal");
         const stageEl = document.getElementById("uhr3dStage");
         const tipEl = document.getElementById("uhr3dTooltip");
+        const btnTurbine = document.getElementById("uhr3dModeTurbine");
+        const btnPump = document.getElementById("uhr3dModePump");
+        const modeLabelEl = document.getElementById("uhr3dModeLabel");
         if (!btn || !modal || !stageEl) return;
 
-        // ══════════════════════════════════════════════════════════════════════════
-        // FATOR DE EXAGERO DO DIÂMETRO DOS TUBOS (apenas visual).
-        // O comprimento e a inclinação permanecem em escala real (1 unid. = 1 m).
-        // ══════════════════════════════════════════════════════════════════════════
         const PIPE_DIAMETER_SCALE = 10;
-
-        // Fator de exagero da ALTURA (profundidade) dos reservatórios (apenas visual).
         const RESERVOIR_HEIGHT_SCALE = 4;
-
-        // Opacidade dos rótulos
         const LABEL_BG_OPACITY = 0.32;
         const LABEL_TEXT_OPACITY = 0.9;
-
-        // Margem do enquadramento inicial (1.0 = bordas encostadas; >1 afasta)
+        const LABEL_OFFSET_SCALE = 3.2;
         const INITIAL_FIT_MARGIN = 1.04;
 
-        // Distância (multiplicador) entre o objeto e seu label — quanto maior, mais
-        // afastado o rótulo fica do topo do objeto referenciado.
-        const LABEL_OFFSET_SCALE = 3.2;
+        // ══════════════════════════════════════════════════════════════════
+        // CONFIGURAÇÃO DA ANIMAÇÃO DE FLUXO NAS TUBULAÇÕES
+        // ══════════════════════════════════════════════════════════════════
+        // Velocidade da animação (ciclos completos de padrão por segundo).
+        const FLOW_SPEED = 0.8;
+        // Cor das "setas" do padrão de fluxo (translúcida, sobre o próprio
+        // corpo do tubo). Azul-água, alinhado à paleta usada nos reservatórios
+        // (0x2f8fb5 / 0x59c1e0), reforçando a leitura de "água em movimento".
+        const FLOW_ARROW_COLOR = "rgba(47,143,181,0.65)";
+        // Opacidade geral da camada de fluxo sobre o corpo do tubo (0 a 1).
+        // Baixa o suficiente para não esconder a cor/material do tubo.
+        const FLOW_OPACITY = 0.65;
+        // Espessura relativa do traço das setas (fração da largura da textura).
+        const FLOW_ARROW_THICKNESS = 0.14;
+        // Quantidade de setas (chevrons) por ciclo de textura (na vertical).
+        const FLOW_ARROWS_PER_TILE = 3;
+        // Fator de repetição da textura ao longo do tubo — quanto MAIOR, mais
+        // setas (menores) aparecem ao longo do comprimento do tubo.
+        const FLOW_REPEAT_DIVISOR = 3.2; // repeats = max(1, round(len / (radius * FLOW_REPEAT_DIVISOR)))
+        // Raio da camada de fluxo em relação ao raio do tubo (pouco maior que
+        // 1, apenas o suficiente para não sofrer z-fighting com o corpo).
+        const FLOW_LAYER_RADIUS_FACTOR = 1.015;
+        // Ângulo (em graus) do arco do tubo coberto pela camada de fluxo. Um
+        // valor menor que 360 restringe a textura à face "frontal" visível do
+        // cilindro, evitando que a seta pareça concentrada nas bordas/silhueta.
+        const FLOW_ARC_DEGREES = 150;
+        // Rotação adicional (radianos) do arco ao redor do eixo do tubo, para
+        // centralizá-lo na face voltada para a câmera. Ajuste conforme o
+        // ângulo padrão da câmera na cena (ela olha de cima, levemente à frente).
+        const FLOW_ARC_ROTATION = Math.PI * 0.15;
 
         let initialized = false;
         let renderer, scene, camera, controls, raycaster, mouse;
         let hoverables = [], activeMesh = null;
-        let waterSurfaces = [];           // superfícies d'água animadas (ondulações)
+        let waterSurfaces = [];
+        let flowPipes = [];          // { uvAttr, baseV } de cada tubo, para animação de fluxo
+        let flowModeSign = -1;        // 1 = Turbinamento (Superior→Inferior) | -1 = Bombeamento
         const clock = new THREE.Clock();
 
         btn.addEventListener("click", function () {
@@ -896,6 +897,25 @@
             }, 0);
         });
 
+        function setMode(mode) {
+            // flowModeSign define o sentido do deslocamento do padrão de setas:
+            //  +1 → sentido Reservatório Superior → Casa de Máquinas → Inferior
+            //       (Turbinamento: água desce e gera energia)
+            //  -1 → sentido Reservatório Inferior → Casa de Máquinas → Superior
+            //       (Bombeamento: água é bombeada de volta para cima)
+            flowModeSign = (mode === "pump") ? 1 : -1;
+            if (btnTurbine && btnPump) {
+                btnTurbine.classList.toggle("btn-active", mode !== "pump");
+                btnPump.classList.toggle("btn-active", mode === "pump");
+            }
+            if (modeLabelEl) {
+                modeLabelEl.textContent = "Modo: " + (mode === "pump" ? "Bombeamento" : "Turbinamento");
+            }
+        }
+
+        if (btnTurbine) btnTurbine.addEventListener("click", function () { setMode("turbine"); });
+        if (btnPump) btnPump.addEventListener("click", function () { setMode("pump"); });
+
         const MAT_COLORS = { "Aço": 0x7c95a6, "Concreto": 0x929aa2 };
         const DEFAULT_PIPE_COLOR = 0x7c95a6;
 
@@ -904,7 +924,6 @@
             return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
         }
 
-        // Geometria REAL de cada tubo: run/drop em metros a partir de length + slope.
         function geom(seg) {
             const L = seg.length || 0;
             const slope = seg.slope || 0;
@@ -913,12 +932,54 @@
             return { run: run, drop: drop };
         }
 
+        // Textura procedural translúcida com setas escuras (chevrons) e um
+        // fino contorno claro, garantindo contraste tanto sobre tubos claros
+        // (concreto) quanto escuros (aço).
+        function makeFlowTexture() {
+            const w = 128, h = 256;
+            const cvs = document.createElement("canvas");
+            cvs.width = w; cvs.height = h;
+            const ctx = cvs.getContext("2d");
+            ctx.clearRect(0, 0, w, h);
+
+            const step = h / FLOW_ARROWS_PER_TILE;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+
+            function drawArrows(color, widthFactor) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = w * widthFactor;
+                for (let i = 0; i < FLOW_ARROWS_PER_TILE; i++) {
+                    const cy = step * i + step * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(w * 0.22, cy + step * 0.28);
+                    ctx.lineTo(w * 0.5, cy - step * 0.28);
+                    ctx.lineTo(w * 0.78, cy + step * 0.28);
+                    ctx.stroke();
+                }
+            }
+
+            // 1) Contorno claro (mais largo, por baixo) — garante contraste
+            //    sobre materiais escuros como o aço.
+            drawArrows("rgba(89,193,224,0.65)", FLOW_ARROW_THICKNESS * 1.6);
+            // 2) Traço escuro principal (mais fino, por cima).
+            drawArrows(FLOW_ARROW_COLOR, FLOW_ARROW_THICKNESS);
+
+            const tex = new THREE.CanvasTexture(cvs);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.needsUpdate = true;
+            return tex;
+        }
+
         function init() {
+            // Garante estado inicial consistente entre variável, botões e legenda
+            // (evita duplicar o "modo padrão" em múltiplos lugares do código/HTML).
+            setMode("turbine");
             const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
             const plant = window.UHR_PLANT || {};
             const pipesAll = segments.filter(function (s) { return s.is_pipe; });
 
-            // ── Separa cadeias "Antes" e "Depois" da casa de máquinas ───────────────
             const antes = [], depois = [], fitAntes = [], fitDepois = [];
             for (const s of segments) {
                 if (s.segment_type === "auto") continue;
@@ -929,7 +990,6 @@
                 }
             }
 
-            // Totais preliminares (para dimensionar reservatórios/casa antes do traçado)
             let preRun = 0, preDrop = 0;
             antes.concat(depois).forEach(function (t) { const g = geom(t); preRun += g.run; preDrop += g.drop; });
             preRun = Math.max(preRun, 1);
@@ -940,28 +1000,19 @@
             if (!dMax) dMax = 3;
             const dMaxVis = dMax * PIPE_DIAMETER_SCALE;
 
-            // Dimensões da casa de máquinas
             const phW = Math.max(preRun * 0.045, dMaxVis * 3.0);
             const phD = Math.max(phW * 0.9, dMaxVis * 3.0);
             const baseH = dMaxVis * 1.8;
             const domeR = phW * 0.48;
 
-            // ── Reservatórios: geometria definida ANTES do traçado ──────────────────
-            // resDepth é a "altura" (profundidade) real da piscina, já ampliada pela
-            // constante RESERVOIR_HEIGHT_SCALE (apenas visual, não afeta o traçado).
-            const resRx = Math.max(preRun * 0.075, dMaxVis * 2.2);   // semi-eixo X (oval)
-            const resRz = Math.max(preRun * 0.32 * 0.1, dMaxVis * 2.2) || dMaxVis * 2.2; // semi-eixo Z (oval)
+            const resRx = Math.max(preRun * 0.075, dMaxVis * 2.2);
+            const resRz = Math.max(preRun * 0.32 * 0.1, dMaxVis * 2.2) || dMaxVis * 2.2;
             const resDepth = Math.max(preDrop * 0.05, dMaxVis * 1.2) * RESERVOIR_HEIGHT_SCALE;
 
-            // Posições horizontais (X) de referência para os centros dos reservatórios.
-            // O centro X do superior fica à esquerda da origem do traçado (0,0); o do
-            // inferior fica à direita do ponto final estimado (preRun horizontal).
             const resCxSup = -resRx * 0.9;
-            const resTopYSup = 0;                          // borda (nível d'água) do reservatório superior
-            const resBottomYSup = resTopYSup - resDepth;    // FUNDO do reservatório superior
+            const resTopYSup = 0;
+            const resBottomYSup = resTopYSup - resDepth;
 
-            // ── Traçado (1 unidade = 1 m; escalas H e V idênticas) ──────────────────
-            // ÂNCORA INICIAL: fundo do reservatório superior.
             function chainNodes(tubes, startPt) {
                 const nodes = [startPt.clone()];
                 let p = startPt.clone();
@@ -973,34 +1024,21 @@
                 return nodes;
             }
 
-            const start = new THREE.Vector3(resCxSup, resBottomYSup, 0); // fundo do reservatório superior
+            const start = new THREE.Vector3(resCxSup, resBottomYSup, 0);
             const nodesA = chainNodes(antes, start);
-            const inletPoint = nodesA[nodesA.length - 1];                                  // lateral ESQUERDA inferior da casa
-            const outletPoint = inletPoint.clone().add(new THREE.Vector3(phW, 0, 0));      // lateral DIREITA inferior da casa
+            const inletPoint = nodesA[nodesA.length - 1];
+            const outletPoint = inletPoint.clone().add(new THREE.Vector3(phW, 0, 0));
             const nodesB = chainNodes(depois, outletPoint);
-            const endPt = nodesB[nodesB.length - 1];                                        // ainda não é a âncora final real
+            const endPt = nodesB[nodesB.length - 1];
 
-            // ── Reservatório inferior: TOPO (nível d'água) ancorado no fim do traçado.
-            // A âncora final da tubulação deve ser a parte SUPERIOR do reservatório
-            // inferior. Como a cadeia "Depois" foi encadeada livremente a partir da
-            // casa de máquinas, ajustamos aqui o ponto de chegada REAL: substituímos o
-            // último nó de nodesB pelo topo do reservatório inferior, mantendo o
-            // formato relativo dos segmentos anteriores.
             const resCxInf = endPt.x + resRx * 0.9;
-            const resTopYInf = endPt.y; // nível d'água do inferior = cota onde a cadeia "Depois" efetivamente chega
+            const resTopYInf = endPt.y;
             const resBottomYInf = resTopYInf - resDepth;
-            nodesB[nodesB.length - 1] = new THREE.Vector3(resCxInf - resRx * 0.9, resTopYInf, 0); // ancoragem exata no topo (aprox. borda)
-            // Observação: para preservar a âncora exata no ponto de nível d'água do
-            // reservatório inferior (topo), usamos diretamente `endPt` (já calculado
-            // pela cadeia) como o próprio nível d'água — ou seja, o reservatório
-            // inferior é posicionado de modo que seu TOPO coincida com endPt.
-            nodesB[nodesB.length - 1] = endPt.clone();
 
             const totalRun = Math.max(endPt.x - start.x, 1);
             const totalDrop = Math.max(start.y - endPt.y, 1);
             const sceneDepth = Math.max(totalRun * 0.3, 60);
 
-            // ── Cena / renderer ──────────────────────────────────────────────────────
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xcfe6f0);
             scene.fog = new THREE.Fog(0xcfe6f0, totalRun * 2.5, totalRun * 8);
@@ -1010,8 +1048,6 @@
             renderer.setSize(stageEl.clientWidth, stageEl.clientHeight);
             stageEl.insertBefore(renderer.domElement, stageEl.firstChild);
 
-            // ── Câmera com ZOOM INICIAL AJUSTADO: enquadra a extensão horizontal
-            //    completa (reservatório a reservatório) próxima às bordas ────────────
             const xMin = start.x - resRx * 1.9;
             const xMax = endPt.x + resRx * 1.9;
             const sceneW = xMax - xMin;
@@ -1043,9 +1079,6 @@
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
-            // ── Reservatórios OVAIS, translúcidos, com aparência de água ────────────
-            // Casca (parede + fundo) delimitando a profundidade + volume d'água +
-            // SUPERFÍCIE ONDULADA animada (grid real via PlaneGeometry).
             const shellMat = new THREE.MeshStandardMaterial({
                 color: 0x9fd4e6, transparent: true, opacity: 0.18,
                 roughness: 0.1, metalness: 0.05, side: THREE.DoubleSide, depthWrite: false,
@@ -1059,44 +1092,35 @@
                 roughness: 0.05, metalness: 0.25, side: THREE.DoubleSide,
             });
 
-            // (cx, topY) = centro e cota do NÍVEL D'ÁGUA (topo) do reservatório.
             function reservoirPool(cx, topY, rx, depth, rz, label) {
                 const grp = new THREE.Group();
 
-                // casca lateral oval (cilindro aberto, escalado em X/Z → elipse)
                 const shell = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.82, depth, 48, 1, true), shellMat);
                 shell.scale.set(rx, 1, rz);
                 shell.position.set(cx, topY - depth / 2, 0);
                 grp.add(shell);
 
-                // fundo translúcido (elipse)
                 const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.82, 48), shellMat);
                 bottom.rotation.x = -Math.PI / 2;
                 bottom.scale.set(rx, rz, 1);
                 bottom.position.set(cx, topY - depth, 0);
                 grp.add(bottom);
 
-                // volume d'água (preenche a piscina até o nível do topo)
                 const waterH = depth * 0.98;
                 const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, waterH, 48, 1, false), waterBodyMat);
                 body.scale.set(rx, 1, rz);
                 body.position.set(cx, topY - depth + waterH / 2, 0);
                 grp.add(body);
 
-                // ── Superfície ondulada: PLANE com grid real (subdivisões em X e Y),
-                //    depois recortada visualmente em oval pela escala + máscara alpha
-                //    do material (aqui aproximamos com um plano levemente maior que a
-                //    elipse, já que o efeito de onda é o requisito principal).
                 const segs = 40;
                 const surfGeo = new THREE.PlaneGeometry(2, 2, segs, segs);
                 const surf = new THREE.Mesh(surfGeo, waterSurfMat);
                 surf.rotation.x = -Math.PI / 2;
                 surf.scale.set(rx, rz, 1);
                 surf.position.set(cx, topY, 0);
-                // guarda as posições-base (x,y do plano) para animar apenas Z
                 const pos = surfGeo.attributes.position;
-                surf.userData.baseX = pos.array.slice(0); // cópia com stride 3 (x,y,z)
-                surf.userData.amp = Math.min(depth * 0.035, dMaxVis * 0.1); // amplitude (m)
+                surf.userData.baseX = pos.array.slice(0);
+                surf.userData.amp = Math.min(depth * 0.035, dMaxVis * 0.1);
                 surf.userData.phase = Math.random() * Math.PI * 2;
                 waterSurfaces.push(surf);
                 grp.add(surf);
@@ -1109,7 +1133,6 @@
             reservoirPool(resCxSup, resTopYSup, resRx, resDepth, resRz, "Reservatório Superior");
             reservoirPool(resCxInf, resTopYInf, resRx, resDepth, resRz, "Reservatório Inferior");
 
-            // ── Casa de máquinas (base de concreto + cúpula de vidro + gerador) ─────
             const phInfo = {
                 __powerhouse: true,
                 name: "Casa de Máquinas",
@@ -1142,7 +1165,6 @@
                 });
                 const frameMat = new THREE.MeshBasicMaterial({ color: 0x7fa8b8, wireframe: true, transparent: true, opacity: 0.5 });
 
-                // 1) Base de concreto — HOVERABLE (dialog da casa de máquinas)
                 const base = new THREE.Mesh(new THREE.BoxGeometry(phW, baseH, phD), concreteMat);
                 base.position.set(cx, baseBottom + baseH / 2, 0);
                 base.userData.seg = phInfo;
@@ -1152,7 +1174,6 @@
                 slab.position.set(cx, baseTop + baseH * 0.06, 0);
                 grp.add(slab);
 
-                // 2) Cúpula de vidro — HOVERABLE (dialog da casa de máquinas)
                 const domeGeo = new THREE.SphereGeometry(domeR, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
                 const dome = new THREE.Mesh(domeGeo, glassMat);
                 dome.position.set(cx, baseTop + baseH * 0.12, 0);
@@ -1166,7 +1187,6 @@
                 cap.position.set(cx, dome.position.y + domeR, 0);
                 grp.add(cap);
 
-                // 3) Gerador (bobinas de cobre + carcaça)
                 const genY = baseTop + baseH * 0.12 + domeR * 0.42;
                 const genR = domeR * 0.34;
                 const stator = new THREE.Mesh(new THREE.CylinderGeometry(genR, genR, genR * 1.1, 24), coilMat);
@@ -1180,12 +1200,10 @@
                 const capB = capT.clone(); capB.position.y = genY - genR * 0.62;
                 grp.add(capT, capB);
 
-                // 4) Eixo vertical
                 const shaft = new THREE.Mesh(new THREE.CylinderGeometry(genR * 0.16, genR * 0.16, (genY - pipeY), 12), steelMat);
                 shaft.position.set(cx, (genY + pipeY) / 2, 0);
                 grp.add(shaft);
 
-                // 5) Voluta da turbina + troncos cônicos de conexão
                 const rIn = pipeRadius(antes.length ? antes[antes.length - 1] : { diameter: dMax });
                 const volute = new THREE.Mesh(new THREE.SphereGeometry(rIn * 1.7, 20, 16), steelDarkMat);
                 volute.position.set(cx, pipeY, 0);
@@ -1205,7 +1223,7 @@
                 scene.add(grp);
             })();
 
-            // ── Tubulações ───────────────────────────────────────────────────────────
+            // ── Tubulações (corpo PBR + camada de fluxo animada sobreposta) ─────────
             function pipeRadius(seg) {
                 return Math.max(((seg.diameter || 1) / 2) * PIPE_DIAMETER_SCALE, totalRun * 0.002);
             }
@@ -1215,18 +1233,72 @@
                 const len = dir.length();
                 if (len <= 0) return;
                 const radius = pipeRadius(seg);
-                const geo = new THREE.CylinderGeometry(radius, radius, len, 24, 1);
-                const mat = new THREE.MeshStandardMaterial({
-                    color: MAT_COLORS[seg.material] || DEFAULT_PIPE_COLOR,
+
+                // 1) Corpo sólido do tubo (aparência de metal/concreto, sem textura).
+                const geo = new THREE.CylinderGeometry(radius, radius, len, 24, 1, false);
+                const baseColor = MAT_COLORS[seg.material] || DEFAULT_PIPE_COLOR;
+                const bodyMat = new THREE.MeshStandardMaterial({
+                    color: baseColor,
                     metalness: seg.material === "Aço" ? 0.55 : 0.05,
                     roughness: seg.material === "Aço" ? 0.35 : 0.8,
                 });
-                const mesh = new THREE.Mesh(geo, mat);
+                const mesh = new THREE.Mesh(geo, bodyMat);
                 mesh.position.copy(a).add(dir.clone().multiplyScalar(0.5));
                 mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
                 mesh.userData.seg = seg;
                 scene.add(mesh);
                 hoverables.push(mesh);
+
+                // 2) Camada de FLUXO animada: um ARCO parcial (não o cilindro
+                //    completo) na face "externa" do tubo, de modo que a seta
+                //    ocupe sempre a LARGURA COMPLETA da parte visível do tubo,
+                //    em vez de ficar concentrada perto das bordas/silhueta.
+                const flowTex = makeFlowTexture();
+                flowTex.wrapS = THREE.RepeatWrapping;
+                flowTex.wrapT = THREE.RepeatWrapping;
+
+                const repeatsAlongLength = Math.max(1, Math.round(len / (radius * FLOW_REPEAT_DIVISOR)));
+
+                // Arco de FLOW_ARC_DEGREES graus, centralizado na face frontal
+                // do cilindro (thetaStart/thetaLength restringem a geometria a
+                // uma "fatia" em vez da volta completa de 360°).
+                const arcRad = THREE.MathUtils.degToRad(FLOW_ARC_DEGREES);
+                const thetaStart = -arcRad / 2;
+                const flowGeo = new THREE.CylinderGeometry(
+                    radius * FLOW_LAYER_RADIUS_FACTOR, radius * FLOW_LAYER_RADIUS_FACTOR,
+                    len * 0.99, 32, 1, true, thetaStart, arcRad
+                );
+
+                // Reindexa o U para ocupar 0..1 em todo o arco (por padrão, o
+                // Three.js já mapeia U proporcionalmente ao ângulo do arco
+                // gerado, então isso normalmente não precisa de ajuste manual).
+                const uvAttr = flowGeo.attributes.uv;
+                for (let i = 0; i < uvAttr.count; i++) {
+                    uvAttr.setY(i, uvAttr.getY(i) * repeatsAlongLength);
+                }
+                uvAttr.needsUpdate = true;
+
+                const flowMat = new THREE.MeshBasicMaterial({
+                    map: flowTex,
+                    color: baseColor,
+                    transparent: true,
+                    opacity: FLOW_OPACITY,
+                    depthWrite: false,
+                    side: THREE.DoubleSide, // visível mesmo se a face normal apontar para longe da câmera
+                });
+                const flowMesh = new THREE.Mesh(flowGeo, flowMat);
+                flowMesh.position.copy(mesh.position);
+                flowMesh.quaternion.copy(mesh.quaternion);
+                // Gira o arco para ficar centralizado na face voltada "para cima"
+                // (em direção à câmera na maior parte dos ângulos de visualização
+                // padrão desta cena). Ajuste FLOW_ARC_ROTATION se necessário.
+                flowMesh.rotateY(FLOW_ARC_ROTATION);
+                flowMesh.renderOrder = 2;
+                scene.add(flowMesh);
+
+                const baseV = new Float32Array(uvAttr.array);
+                flowPipes.push({ uvAttr: uvAttr, baseV: baseV });
+
                 [a, b].forEach(function (p) {
                     const ring = new THREE.Mesh(
                         new THREE.TorusGeometry(radius * 1.12, radius * 0.12, 10, 24),
@@ -1259,29 +1331,18 @@
                 addFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)], dMaxVis / 2);
             });
 
-            // ── Cota de referência — posicionada bem próxima ao limite SUPERIOR da
-            //    imagem. Projetamos um ponto do espaço de TELA (NDC) de volta para o
-            //    mundo, no plano Z=0 da cena, garantindo que o rótulo fique sempre
-            //    rente ao topo do quadro, independentemente do ângulo/zoom da câmera.
-            //
-            //    IMPORTANTE: a câmera só tem suas matrizes (projection/world) válidas
-            //    após um update explícito — como este cálculo ocorre ANTES do primeiro
-            //    render(), é necessário forçar a atualização aqui, senão o unproject()
-            //    usa matrizes desatualizadas e o ponto resultante cai fora da tela.
             camera.updateProjectionMatrix();
             camera.updateMatrixWorld(true);
-
             function screenTopToWorld(ndcX, ndcY, atZ) {
                 const ray = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera);
                 const dir = ray.clone().sub(camera.position).normalize();
                 const t = (atZ - camera.position.z) / dir.z;
                 return camera.position.clone().add(dir.multiplyScalar(t));
             }
-            const topWorld = screenTopToWorld(0, 0.90, 0); // ndcY=0.90 → bem próximo do topo (1.0 = borda exata)
+            const topWorld = screenTopToWorld(0, 0.90, 0);
             scene.add(makeLabel("Queda: " + fmt(totalDrop, 1) + " m  |  Avanço: " + fmt(totalRun, 1) + " m",
                 center.x, topWorld.y, 0, totalRun));
 
-            // ── Rótulos (sprites translúcidos) ──────────────────────────────────────
             function makeLabel(text, x, y, z, scaleRef) {
                 const cvs = document.createElement("canvas");
                 const ctx = cvs.getContext("2d");
@@ -1307,7 +1368,6 @@
                 return spr;
             }
 
-            // ── Tooltip por raycasting (tubos, peças E casa de máquinas) ────────────
             function rowHtml(k, v) {
                 return '<div class="uhr-tt-row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
             }
@@ -1372,13 +1432,24 @@
                 activeMesh = null;
             });
 
-            // ── Loop de animação (ondulações da água) / resize ──────────────────────
+            // ── Loop de animação (fluxo nos tubos + ondulações da água) / resize ────
             (function animate() {
                 requestAnimationFrame(animate);
                 const t = clock.getElapsedTime();
-                // Ondas: para cada superfície, desloca o eixo Z (antes da rotação, é o
-                // "altura" local do plano) usando a posição-base (x,y) de cada vértice,
-                // com dois senos defasados por vértice e no tempo → ondulação viajante.
+
+                // Fluxo animado — desloca diretamente o atributo UV.y de cada tubo a
+                // cada frame, com base no TEMPO ABSOLUTO (evita drift de precisão
+                // numérica em sessões longas) e no sinal do modo selecionado.
+                const shift = (flowModeSign * FLOW_SPEED * t) % 1;
+                flowPipes.forEach(function (fp) {
+                    const arr = fp.uvAttr.array;
+                    const base = fp.baseV;
+                    for (let i = 0; i < fp.uvAttr.count; i++) {
+                        arr[i * 2 + 1] = base[i * 2 + 1] + shift;
+                    }
+                    fp.uvAttr.needsUpdate = true;
+                });
+
                 waterSurfaces.forEach(function (surf) {
                     const pos = surf.geometry.attributes.position;
                     const base = surf.userData.baseX;
@@ -1394,6 +1465,7 @@
                     pos.needsUpdate = true;
                     surf.geometry.computeVertexNormals();
                 });
+
                 controls.update();
                 renderer.render(scene, camera);
             })();
