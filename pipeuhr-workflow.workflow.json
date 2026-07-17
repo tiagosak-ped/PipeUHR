@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Workflow do PipeUHR",
+    "subtitle": "Otimização local de usinas hidrelétricas reversíveis",
+    "output": "pipeuhr-workflow.html"
+  },
+  "lanes": [
+    { "id": "engineer", "label": "Engenheiro" },
+    { "id": "web", "label": "Interface web local" },
+    { "id": "flask", "label": "Aplicação Flask" },
+    { "id": "solver", "label": "Núcleo de otimização" },
+    { "id": "storage", "label": "Persistência local" }
+  ],
+  "phases": [
+    { "id": "input", "label": "Entrada", "fromCol": 0, "toCol": 1 },
+    { "id": "processing", "label": "Processamento", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "analysis", "label": "Análise", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [],
+  "mainPath": ["engineer", "parameters", "build-model", "configure", "optimize", "verify", "results"],
+  "nodes": [
+    {
+      "id": "engineer",
+      "lane": "engineer",
+      "col": 0,
+      "type": "external",
+      "label": "Engenheiro",
+      "sublabel": "define o projeto",
+      "width": 94
+    },
+    {
+      "id": "parameters",
+      "lane": "web",
+      "col": 1,
+      "type": "frontend",
+      "label": "Parâmetros",
+      "sublabel": "UHR e circuito",
+      "width": 115
+    },
+    {
+      "id": "build-model",
+      "lane": "flask",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /solve",
+      "sublabel": "interpreta o formulário",
+      "width": 120
+    },
+    {
+      "id": "configure",
+      "lane": "solver",
+      "col": 2,
+      "type": "backend",
+      "label": "Modelo UHR",
+      "sublabel": "aplica parâmetros",
+      "width": 94
+    },
+    {
+      "id": "optimize",
+      "lane": "solver",
+      "col": 3,
+      "type": "backend",
+      "label": "SLSQP",
+      "sublabel": "minimiza CT",
+      "tag": "SciPy",
+      "width": 78
+    },
+    {
+      "id": "verify",
+      "lane": "solver",
+      "col": 5,
+      "type": "security",
+      "label": "Verificação",
+      "sublabel": "restrições e folgas",
+      "width": 105
+    },
+    {
+      "id": "results",
+      "lane": "web",
+      "col": 5,
+      "type": "frontend",
+      "label": "Resultados",
+      "sublabel": "custos e indicadores",
+      "width": 108
+    },
+    {
+      "id": "templates",
+      "lane": "storage",
+      "col": 1,
+      "type": "database",
+      "label": "Templates JSON",
+      "sublabel": "dados do projeto",
+      "tag": "arquivos locais",
+      "width": 115
+    }
+  ],
+  "edges": [
+    {
+      "from": "engineer",
+      "to": "parameters",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    },
+    {
+      "from": "parameters",
+      "to": "build-model",
+      "label": "otimizar",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "from": "build-model",
+      "to": "configure",
+      "label": "dados validados",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    { "from": "configure", "to": "optimize", "variant": "emphasis" },
+    { "from": "optimize", "to": "verify", "variant": "emphasis" },
+    {
+      "from": "verify",
+      "to": "results",
+      "label": "relatório",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "route": "up-channel",
+      "labelSegment": 1
+    },
+    {
+      "from": "parameters",
+      "to": "templates",
+      "variant": "dashed",
+      "role": "async",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Execução standalone",
+      "items": [
+        "Servidor Flask em 127.0.0.1",
+        "Cálculo executado localmente",
+        "Templates persistidos em JSON"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Otimização",
+      "items": [
+        "Custo total de barragens, casa de força e circuitos",
+        "Variáveis: alturas, diâmetros e horas de bombeamento",
+        "Solver SciPy SLSQP"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Restrições verificadas",
+      "items": [
+        "Velocidade, perda de carga e pressão",
+        "Cavitação, potência e relação Pturb/Pbomb",
+        "Conformidade e folgas no resultado"
+      ]
+    }
+  ]
+}

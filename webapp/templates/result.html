@@ -880,12 +880,51 @@
         // ângulo padrão da câmera na cena (ela olha de cima, levemente à frente).
         const FLOW_ARC_ROTATION = Math.PI * 0.15;
 
+        // ══════════════════════════════════════════════════════════════════
+        // CONFIGURAÇÃO DA ANIMAÇÃO DA ÁGUA NOS RESERVATÓRIOS
+        // ══════════════════════════════════════════════════════════════════
+        // Período (s) do trecho em movimento de um ciclo completo de transferência
+        // de água entre os reservatórios. A pausa nos extremos é somada à parte.
+        // Quanto MAIOR, mais lenta a variação de nível durante a subida/descida.
+        const WATER_LEVEL_PERIOD = 16.0;
+        // Tempo (s) que a água permanece parada nos extremos (quase vazia/quase
+        // cheia) antes da alteração automática Turbinamento ↔ Bombeamento.
+        const WATER_LEVEL_HOLD = 2.0;
+        // A água oscila entre "quase vazio" (MIN) e "quase cheio, na borda" (MAX):
+        // enquanto um reservatório vai de MIN→MAX, o outro faz MAX→MIN. O extremo
+        // "quase vazio" coincide com a inversão do fluxo, de modo que a água quase
+        // acaba pouco antes de o modo (Turbinamento/Bombeamento) trocar sozinho.
+        const WATER_LEVEL_MIN_FRACTION = 0.20;  // ~20% da profundidade (quase vazio)
+        const WATER_LEVEL_MAX_FRACTION = 0.90;  // ~90% (lâmina quase na borda)
+        // Conjunto de ondas direcionais SOMADAS para compor a superfície. Cada
+        // onda tem direção (dx,dy) JÁ NORMALIZADA, frequência espacial, velocidade
+        // temporal e amplitude relativa (a soma das amplitudes = 1.0). Combinar
+        // várias ondas de direções/escalas distintas produz um aspecto de água
+        // muito mais realista do que uma única senoide.
+        const WATER_WAVES = [
+            { dx: 1.000, dy: 0.000, freq: 4.2, speed: 1.5, amp: 0.55 },
+            { dx: 0.543, dy: 0.839, freq: 7.5, speed: 2.0, amp: 0.30 },
+            { dx: -0.330, dy: 0.944, freq: 12.0, speed: 2.8, amp: 0.15 },
+        ];
+        // Intensidade do deslocamento horizontal de Gerstner: empurra os vértices
+        // na direção de cada onda, afinando as cristas e alargando os vales —
+        // o perfil característico de ondas reais. 0 = apenas onda vertical.
+        const WATER_GERSTNER = 0.6;
+
         let initialized = false;
         let renderer, scene, camera, controls, raycaster, mouse;
         let hoverables = [], activeMesh = null;
         let waterSurfaces = [];
         let flowPipes = [];          // { uvAttr, baseV } de cada tubo, para animação de fluxo
-        let flowModeSign = -1;        // 1 = Turbinamento (Superior→Inferior) | -1 = Bombeamento
+        let flowModeSign = -1;        // -1 = Turbinamento (água desce) | +1 = Bombeamento (água sobe)
+        let currentMode = "turbine"; // modo atual, sincronizado com flowModeSign
+        // Deslocamento temporal do ciclo de nível. Permite que os botões "forcem"
+        // um sentido de fluxo sem que o nível da água "pule", mantendo a troca
+        // automática de modo consistente.
+        let levelTimeOffset = 0;
+        let flowShift = 0;            // deslocamento ACUMULADO do padrão de fluxo nos tubos
+        let waveTime = 0;             // "tempo direcional" ACUMULADO das ondas da superfície
+        let lastFrameT = 0;           // instante do frame anterior (para o dt)
         const clock = new THREE.Clock();
 
         btn.addEventListener("click", function () {
@@ -898,12 +937,12 @@
         });
 
         function setMode(mode) {
-            // flowModeSign define o sentido do deslocamento do padrão de setas:
-            //  +1 → sentido Reservatório Superior → Casa de Máquinas → Inferior
-            //       (Turbinamento: água desce e gera energia)
-            //  -1 → sentido Reservatório Inferior → Casa de Máquinas → Superior
-            //       (Bombeamento: água é bombeada de volta para cima)
+            // flowModeSign define o sentido do deslocamento do padrão de setas e
+            // das ondas na superfície:
+            //  -1 → Turbinamento: água desce (Superior → Casa de Máquinas → Inferior)
+            //  +1 → Bombeamento: água sobe (Inferior → Casa de Máquinas → Superior)
             flowModeSign = (mode === "pump") ? 1 : -1;
+            currentMode = mode;
             if (btnTurbine && btnPump) {
                 btnTurbine.classList.toggle("btn-active", mode !== "pump");
                 btnPump.classList.toggle("btn-active", mode === "pump");
@@ -913,8 +952,48 @@
             }
         }
 
-        if (btnTurbine) btnTurbine.addEventListener("click", function () { setMode("turbine"); });
-        if (btnPump) btnPump.addEventListener("click", function () { setMode("pump"); });
+        function getWaterLevelState(t) {
+            const halfMove = WATER_LEVEL_PERIOD / 2;
+            const cycle = WATER_LEVEL_PERIOD + WATER_LEVEL_HOLD * 2;
+            let u = (t + levelTimeOffset) % cycle;
+            if (u < 0) u += cycle;
+
+            if (u < halfMove) {
+                const p = u / halfMove;
+                return { levelWave: -Math.cos(Math.PI * p), mode: "turbine" };
+            }
+            if (u < halfMove + WATER_LEVEL_HOLD) {
+                return { levelWave: 1, mode: "turbine" };
+            }
+            if (u < WATER_LEVEL_PERIOD + WATER_LEVEL_HOLD) {
+                const p = (u - halfMove - WATER_LEVEL_HOLD) / halfMove;
+                return { levelWave: Math.cos(Math.PI * p), mode: "pump" };
+            }
+            return { levelWave: -1, mode: "pump" };
+        }
+
+        function cycleTimeForMode(mode, levelWave) {
+            const halfMove = WATER_LEVEL_PERIOD / 2;
+            const v = Math.max(-1, Math.min(1, levelWave));
+            if (mode === "pump") {
+                return halfMove + WATER_LEVEL_HOLD + Math.acos(v) * halfMove / Math.PI;
+            }
+            return Math.acos(-v) * halfMove / Math.PI;
+        }
+
+        // Clique manual "força" o sentido do fluxo mantendo o NÍVEL contínuo (sem
+        // salto na altura da água). A troca AUTOMÁTICA de modo volta a ocorrer
+        // sozinha nos próximos extremos, respeitando WATER_LEVEL_HOLD.
+        function forceFlowMode(mode) {
+            if (mode === currentMode) return;
+            const t = clock.getElapsedTime();
+            const state = getWaterLevelState(t);
+            levelTimeOffset = cycleTimeForMode(mode, state.levelWave) - t;
+            setMode(mode);
+        }
+
+        if (btnTurbine) btnTurbine.addEventListener("click", function () { forceFlowMode("turbine"); });
+        if (btnPump) btnPump.addEventListener("click", function () { forceFlowMode("pump"); });
 
         const MAT_COLORS = { "Aço": 0x7c95a6, "Concreto": 0x929aa2 };
         const DEFAULT_PIPE_COLOR = 0x7c95a6;
@@ -1080,7 +1159,7 @@
             mouse = new THREE.Vector2();
 
             const shellMat = new THREE.MeshStandardMaterial({
-                color: 0x9fd4e6, transparent: true, opacity: 0.18,
+                color: 0x8ec6dc, transparent: true, opacity: 0.25,
                 roughness: 0.1, metalness: 0.05, side: THREE.DoubleSide, depthWrite: false,
             });
             const waterBodyMat = new THREE.MeshStandardMaterial({
@@ -1092,7 +1171,7 @@
                 roughness: 0.05, metalness: 0.25, side: THREE.DoubleSide,
             });
 
-            function reservoirPool(cx, topY, rx, depth, rz, label) {
+            function reservoirPool(cx, topY, rx, depth, rz, label, role) {
                 const grp = new THREE.Group();
 
                 const shell = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.82, depth, 48, 1, true), shellMat);
@@ -1106,22 +1185,37 @@
                 bottom.position.set(cx, topY - depth, 0);
                 grp.add(bottom);
 
-                const waterH = depth * 0.98;
-                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, waterH, 48, 1, false), waterBodyMat);
-                body.scale.set(rx, 1, rz);
-                body.position.set(cx, topY - depth + waterH / 2, 0);
+                // A água oscila entre "quase vazio" (MIN) e "quase cheio" (MAX). A
+                // geometria do corpo d'água é criada na altura de referência (MAX) e
+                // escalada em Y a cada frame; a superfície acompanha o topo.
+                const bottomY = topY - depth;
+                const geomH = depth * WATER_LEVEL_MAX_FRACTION;                                  // altura de referência
+                const midH = depth * (WATER_LEVEL_MIN_FRACTION + WATER_LEVEL_MAX_FRACTION) / 2;   // nível médio
+                const swingH = depth * (WATER_LEVEL_MAX_FRACTION - WATER_LEVEL_MIN_FRACTION) / 2; // metade do curso
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, geomH, 48, 1, false), waterBodyMat);
+                body.scale.set(rx, midH / geomH, rz);
+                body.position.set(cx, bottomY + midH / 2, 0);
                 grp.add(body);
 
-                const segs = 40;
+                const segs = 48;
                 const surfGeo = new THREE.PlaneGeometry(2, 2, segs, segs);
                 const surf = new THREE.Mesh(surfGeo, waterSurfMat);
                 surf.rotation.x = -Math.PI / 2;
                 surf.scale.set(rx, rz, 1);
-                surf.position.set(cx, topY, 0);
+                surf.position.set(cx, bottomY + midH, 0);
                 const pos = surfGeo.attributes.position;
                 surf.userData.baseX = pos.array.slice(0);
-                surf.userData.amp = Math.min(depth * 0.035, dMaxVis * 0.1);
+                surf.userData.amp = Math.min(depth * 0.04, dMaxVis * 0.12);
                 surf.userData.phase = Math.random() * Math.PI * 2;
+                surf.userData.role = role;          // "upper" | "lower"
+                surf.userData.rx = rx;
+                surf.userData.rz = rz;
+                surf.userData.depth = depth;
+                surf.userData.geomH = geomH;        // altura da geometria (referência p/ scale.y)
+                surf.userData.midH = midH;          // nível médio
+                surf.userData.swingH = swingH;      // amplitude do nível (metade do curso)
+                surf.userData.bottomY = bottomY;    // fundo do reservatório (fixo)
+                surf.userData.body = body;          // corpo d'água acompanha o nível
                 waterSurfaces.push(surf);
                 grp.add(surf);
 
@@ -1130,8 +1224,8 @@
                 return grp;
             }
 
-            reservoirPool(resCxSup, resTopYSup, resRx, resDepth, resRz, "Reservatório Superior");
-            reservoirPool(resCxInf, resTopYInf, resRx, resDepth, resRz, "Reservatório Inferior");
+            reservoirPool(resCxSup, resTopYSup, resRx, resDepth, resRz, "Reservatório Superior", "upper");
+            reservoirPool(resCxInf, resTopYInf, resRx, resDepth, resRz, "Reservatório Inferior", "lower");
 
             const phInfo = {
                 __powerhouse: true,
@@ -1436,11 +1530,29 @@
             (function animate() {
                 requestAnimationFrame(animate);
                 const t = clock.getElapsedTime();
+                const dt = Math.min(Math.max(t - lastFrameT, 0), 0.05);
+                lastFrameT = t;
 
-                // Fluxo animado — desloca diretamente o atributo UV.y de cada tubo a
-                // cada frame, com base no TEMPO ABSOLUTO (evita drift de precisão
-                // numérica em sessões longas) e no sinal do modo selecionado.
-                const shift = (flowModeSign * FLOW_SPEED * t) % 1;
+                // ── Troca AUTOMÁTICA de modo conforme o fluxo entre reservatórios ───
+                // O nível percorre uma rampa senoidal entre quase vazio/quase cheio
+                // e permanece WATER_LEVEL_HOLD segundos em cada extremo antes de
+                // inverter automaticamente Turbinamento ↔ Bombeamento.
+                const levelState = getWaterLevelState(t);
+                const levelWave = levelState.levelWave;
+                const autoMode = levelState.mode;
+                if (autoMode !== currentMode) setMode(autoMode);
+
+                // Sentido das ondas na superfície (oposto ao sinal do modo). O
+                // "tempo direcional" acumulado garante reversão SUAVE ao trocar.
+                const waveDir = -flowModeSign;   // Turbinamento → +1 | Bombeamento → -1
+                waveTime += waveDir * dt;
+
+                // Fluxo nos tubos: ACUMULA o deslocamento (em vez de usar o tempo
+                // absoluto), de modo que, ao inverter o modo, o padrão de setas
+                // reverta suavemente — sem "salto" — já que a inversão ocorre no
+                // ponto de vazão ~zero (nível no extremo).
+                flowShift = (flowShift + flowModeSign * FLOW_SPEED * dt) % 1;
+                const shift = flowShift;
                 flowPipes.forEach(function (fp) {
                     const arr = fp.uvAttr.array;
                     const base = fp.baseV;
@@ -1450,17 +1562,50 @@
                     fp.uvAttr.needsUpdate = true;
                 });
 
+                // Nível da água: transferência lenta entre os reservatórios. Um
+                // esvazia enquanto o outro enche (volume conservado), tornando
+                // visível a água "fluindo" de um reservatório ao outro. O nível e o
+                // modo já foram atualizados acima (levelWave / troca automática).
                 waterSurfaces.forEach(function (surf) {
+                    const ud = surf.userData;
+
+                    // 1) NÍVEL — corpo d'água e superfície sobem/descem juntos, a
+                    //    partir do fundo fixo (revela a linha de rebaixamento na
+                    //    parede do reservatório). O reservatório que esvazia chega
+                    //    a "quase vazio" (MIN) justo na inversão automática do fluxo.
+                    const sign = (ud.role === "upper" ? -1 : 1);
+                    const newWaterH = ud.midH + sign * levelWave * ud.swingH;
+                    ud.body.scale.y = newWaterH / ud.geomH;
+                    ud.body.position.y = ud.bottomY + newWaterH / 2;
+                    surf.position.y = ud.bottomY + newWaterH;
+                    // Ondulação proporcional à lâmina d'água: quase vazio → mais calmo.
+                    const ampScale = Math.min(1, newWaterH / (ud.depth * 0.4));
+
+                    // 2) SUPERFÍCIE — soma de ondas direcionais viajantes (aspecto
+                    //    realista) com leve deslocamento horizontal de Gerstner
+                    //    (cristas estreitas, vales largos). As ondas viajam no
+                    //    sentido do fluxo e invertem ao trocar de modo.
                     const pos = surf.geometry.attributes.position;
-                    const base = surf.userData.baseX;
-                    const amp = surf.userData.amp;
-                    const ph = surf.userData.phase;
+                    const base = ud.baseX;
+                    const amp = ud.amp * ampScale;
+                    const ph = ud.phase;
+                    const gX = (WATER_GERSTNER * amp) / ud.rx;
+                    const gY = (WATER_GERSTNER * amp) / ud.rz;
                     for (let i = 0; i < pos.count; i++) {
                         const bx = base[i * 3];
                         const by = base[i * 3 + 1];
-                        const z = amp * Math.sin(bx * 6.0 + t * 1.8 + ph) * 0.6 +
-                            amp * Math.sin(by * 8.0 - t * 1.3 + ph) * 0.4;
-                        pos.setZ(i, z);
+                        let z = 0, ox = 0, oy = 0;
+                        for (let w = 0; w < WATER_WAVES.length; w++) {
+                            const wv = WATER_WAVES[w];
+                            const arg = (wv.dx * bx + wv.dy * by) * wv.freq - waveTime * wv.speed + ph;
+                            z += wv.amp * Math.sin(arg);
+                            const c = Math.cos(arg);
+                            ox += wv.amp * wv.dx * c;
+                            oy += wv.amp * wv.dy * c;
+                        }
+                        pos.setX(i, bx + gX * ox);
+                        pos.setY(i, by + gY * oy);
+                        pos.setZ(i, amp * z);
                     }
                     pos.needsUpdate = true;
                     surf.geometry.computeVertexNormals();

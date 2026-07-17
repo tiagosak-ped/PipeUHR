@@ -55,6 +55,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="DESIGN.md" />
+    <Content Include="pipeuhr-workflow.html" />
+    <Content Include="pipeuhr-workflow.workflow.json" />
     <Content Include="PRODUCT.md" />
     <Content Include="requirements.txt" />
     <Content Include="TESTING_PLAN.md" />
