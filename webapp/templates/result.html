@@ -194,6 +194,82 @@
             border: 1px solid rgba(0,0,0,0.25);
         }
 
+    /* ── Esquema 3D (Three.js) — usina KIMI ─────────────────────────────── */
+    .kimi-stage {
+        position: relative;
+        width: 100%;
+        height: min(68vh, 40rem);
+        background: linear-gradient(180deg, #a9d3e8 0%, #cfe5f0 52%, #e8f0e4 100%);
+        border: 1px solid hsl(var(--b3));
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+        .kimi-stage canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+    .kimi-tooltip {
+        position: absolute;
+        z-index: 30;
+        pointer-events: none;
+        min-width: 12.5rem;
+        max-width: 18rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: 0.5rem;
+        background-color: oklch(var(--b1) / 0.85);
+        border: 1px solid hsl(var(--bc) / 0.18);
+        color: hsl(var(--bc));
+        box-shadow: 0 16px 34px -8px rgba(0,0,0,0.55), 0 8px 16px -6px rgba(0,0,0,0.4);
+        font-size: 0.75rem;
+        line-height: 1.15rem;
+        display: none;
+    }
+
+    .kimi-legend {
+        position: absolute;
+        left: 0.75rem;
+        bottom: 0.75rem;
+        z-index: 25;
+        padding: 0.4rem 0.6rem;
+        border-radius: 0.375rem;
+        background-color: oklch(var(--b1) / 0.72);
+        border: 1px solid hsl(var(--bc) / 0.12);
+        font-size: 0.6875rem;
+        color: hsl(var(--bc) / 0.8);
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+        .kimi-legend .lg-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .kimi-legend .lg-swatch {
+            width: 0.85rem;
+            height: 0.45rem;
+            border-radius: 0.15rem;
+            display: inline-block;
+            border: 1px solid rgba(0,0,0,0.25);
+        }
+
+    .kimi-empty {
+        position: absolute;
+        inset: 0;
+        z-index: 26;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: hsl(var(--bc) / 0.55);
+        font-size: 0.8125rem;
+    }
+
     /* ─── Tabelas: sutil realce na linha sob o cursor ────────────────────────── */
     .result-table tbody tr {
         transition: background-color 0.18s ease;
@@ -224,6 +300,10 @@
         <button type="button" id="uhr3dBtn" class="btn btn-secondary btn-sm gap-1">
             <i data-lucide="box" class="w-3.5 h-3.5"></i>
             Ver esquema da usina FB5
+        </button>
+        <button type="button" id="uhrKimiBtn" class="btn btn-accent btn-sm gap-1">
+            <i data-lucide="mountain" class="w-3.5 h-3.5"></i>
+            Ver esquema da usina Kimi
         </button>
         <a href="{{ url_for('index') }}" class="btn btn-ghost btn-sm gap-1">
             <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
@@ -515,9 +595,71 @@
             </div>
             <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
                 <i data-lucide="rotate-3d" class="w-3.5 h-3.5"></i>
-                Arraste para orbitar, use a roda do mouse para zoom e o botão direito para transladar.
+                Clique e arraste com o botão esquerdo para deslocar a vista (direita/esquerda, cima/baixo),
+                use o botão direito para orbitar e a roda do mouse para zoom.
                 Passe o mouse sobre os tubos para ver os detalhes. O traçado usa o comprimento (seg.length)
                 e a inclinação (seg.slope) reais de cada segmento.
+            </p>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- ── Modal: Esquema 3D da usina KIMI (Three.js) ──────────────────────── -->
+<dialog id="uhrKimiModal" class="modal">
+    <div class="modal-box w-11/12 max-w-7xl p-0 overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-base-300">
+            <div class="flex items-center gap-2">
+                <i data-lucide="mountain" class="w-4 h-4 text-accent"></i>
+                <span class="font-semibold text-sm">Esquema 3D da usina Kimi — UHR em corte, em escala real (1 unid. = 1 m · escala horizontal ≡ vertical)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="join">
+                    <button type="button" id="uhrKimiModeTurbine" class="btn btn-xs join-item gap-1" data-mode="turbine">
+                        <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+                        Turbinamento
+                    </button>
+                    <button type="button" id="uhrKimiModePump" class="btn btn-xs join-item gap-1" data-mode="pump">
+                        <i data-lucide="arrow-up-circle" class="w-3.5 h-3.5"></i>
+                        Bombeamento
+                    </button>
+                </div>
+                <form method="dialog">
+                    <button class="btn btn-ghost btn-sm btn-square" aria-label="Fechar">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stage 3D -->
+        <div class="px-5 py-4">
+            <div id="uhrKimiStage" class="kimi-stage">
+                <div id="uhrKimiTooltip" class="kimi-tooltip"></div>
+                <div id="uhrKimiEmpty" class="kimi-empty" style="display:none;">
+                    <i data-lucide="image-off" class="w-5 h-5"></i>
+                    <span>Sem segmentos de tubulação para desenhar.</span>
+                </div>
+                <div class="kimi-legend">
+                    <div class="lg-row"><span class="lg-swatch" style="background:#8fa8bb"></span> Tubulação — Aço</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#9aa1a8"></span> Tubulação — Concreto</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#3d9dc4"></span> Água / Reservatórios</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#9fb0ba"></span> Casa de máquinas</div>
+                    <div class="lg-row"><span class="lg-swatch" style="background:#7d9268"></span> Maciço / Terreno</div>
+                    <div class="lg-row" id="uhrKimiModeIndicator" style="margin-top:0.2rem; font-weight:600;">
+                        <i data-lucide="waves" class="w-3 h-3"></i>
+                        <span id="uhrKimiModeLabel">Modo</span>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-base-content/50 mt-2 flex items-center gap-1.5">
+                <i data-lucide="rotate-3d" class="w-3.5 h-3.5"></i>
+                Arraste para orbitar, use a roda do mouse para zoom e o botão direito para transladar.
+                Passe o mouse sobre tubos, estruturas e reservatórios para ver os detalhes.
+                O traçado hidráulico é construído em escala 1:1 (horizontal = vertical) a partir de
+                seg.length e seg.slope de cada segmento em pipesAll, encadeados conforme a posição
+                (Antes/Depois) em relação à casa de máquinas. Réguas horizontal e vertical indicam a escala.
             </p>
         </div>
     </div>
@@ -852,79 +994,41 @@
         // ══════════════════════════════════════════════════════════════════
         // CONFIGURAÇÃO DA ANIMAÇÃO DE FLUXO NAS TUBULAÇÕES
         // ══════════════════════════════════════════════════════════════════
-        // Velocidade da animação (ciclos completos de padrão por segundo).
         const FLOW_SPEED = 0.8;
-        // Cor das "setas" do padrão de fluxo (translúcida, sobre o próprio
-        // corpo do tubo). Azul-água, alinhado à paleta usada nos reservatórios
-        // (0x2f8fb5 / 0x59c1e0), reforçando a leitura de "água em movimento".
         const FLOW_ARROW_COLOR = "rgba(47,143,181,0.65)";
-        // Opacidade geral da camada de fluxo sobre o corpo do tubo (0 a 1).
-        // Baixa o suficiente para não esconder a cor/material do tubo.
         const FLOW_OPACITY = 0.65;
-        // Espessura relativa do traço das setas (fração da largura da textura).
         const FLOW_ARROW_THICKNESS = 0.14;
-        // Quantidade de setas (chevrons) por ciclo de textura (na vertical).
         const FLOW_ARROWS_PER_TILE = 3;
-        // Fator de repetição da textura ao longo do tubo — quanto MAIOR, mais
-        // setas (menores) aparecem ao longo do comprimento do tubo.
-        const FLOW_REPEAT_DIVISOR = 3.2; // repeats = max(1, round(len / (radius * FLOW_REPEAT_DIVISOR)))
-        // Raio da camada de fluxo em relação ao raio do tubo (pouco maior que
-        // 1, apenas o suficiente para não sofrer z-fighting com o corpo).
+        const FLOW_REPEAT_DIVISOR = 3.2;
         const FLOW_LAYER_RADIUS_FACTOR = 1.015;
-        // Ângulo (em graus) do arco do tubo coberto pela camada de fluxo. Um
-        // valor menor que 360 restringe a textura à face "frontal" visível do
-        // cilindro, evitando que a seta pareça concentrada nas bordas/silhueta.
         const FLOW_ARC_DEGREES = 150;
-        // Rotação adicional (radianos) do arco ao redor do eixo do tubo, para
-        // centralizá-lo na face voltada para a câmera. Ajuste conforme o
-        // ângulo padrão da câmera na cena (ela olha de cima, levemente à frente).
         const FLOW_ARC_ROTATION = Math.PI * 0.15;
 
         // ══════════════════════════════════════════════════════════════════
         // CONFIGURAÇÃO DA ANIMAÇÃO DA ÁGUA NOS RESERVATÓRIOS
         // ══════════════════════════════════════════════════════════════════
-        // Período (s) do trecho em movimento de um ciclo completo de transferência
-        // de água entre os reservatórios. A pausa nos extremos é somada à parte.
-        // Quanto MAIOR, mais lenta a variação de nível durante a subida/descida.
         const WATER_LEVEL_PERIOD = 16.0;
-        // Tempo (s) que a água permanece parada nos extremos (quase vazia/quase
-        // cheia) antes da alteração automática Turbinamento ↔ Bombeamento.
         const WATER_LEVEL_HOLD = 2.0;
-        // A água oscila entre "quase vazio" (MIN) e "quase cheio, na borda" (MAX):
-        // enquanto um reservatório vai de MIN→MAX, o outro faz MAX→MIN. O extremo
-        // "quase vazio" coincide com a inversão do fluxo, de modo que a água quase
-        // acaba pouco antes de o modo (Turbinamento/Bombeamento) trocar sozinho.
-        const WATER_LEVEL_MIN_FRACTION = 0.20;  // ~20% da profundidade (quase vazio)
-        const WATER_LEVEL_MAX_FRACTION = 0.90;  // ~90% (lâmina quase na borda)
-        // Conjunto de ondas direcionais SOMADAS para compor a superfície. Cada
-        // onda tem direção (dx,dy) JÁ NORMALIZADA, frequência espacial, velocidade
-        // temporal e amplitude relativa (a soma das amplitudes = 1.0). Combinar
-        // várias ondas de direções/escalas distintas produz um aspecto de água
-        // muito mais realista do que uma única senoide.
+        const WATER_LEVEL_MIN_FRACTION = 0.20;
+        const WATER_LEVEL_MAX_FRACTION = 0.90;
         const WATER_WAVES = [
             { dx: 1.000, dy: 0.000, freq: 4.2, speed: 1.5, amp: 0.55 },
             { dx: 0.543, dy: 0.839, freq: 7.5, speed: 2.0, amp: 0.30 },
             { dx: -0.330, dy: 0.944, freq: 12.0, speed: 2.8, amp: 0.15 },
         ];
-        // Intensidade do deslocamento horizontal de Gerstner: empurra os vértices
-        // na direção de cada onda, afinando as cristas e alargando os vales —
-        // o perfil característico de ondas reais. 0 = apenas onda vertical.
         const WATER_GERSTNER = 0.6;
 
         let initialized = false;
         let renderer, scene, camera, controls, raycaster, mouse;
         let hoverables = [], activeMesh = null;
         let waterSurfaces = [];
-        let flowPipes = [];          // { uvAttr, baseV } de cada tubo, para animação de fluxo
-        let flowModeSign = -1;        // -1 = Turbinamento (água desce) | +1 = Bombeamento (água sobe)
-        let currentMode = "turbine"; // modo atual, sincronizado com flowModeSign
-        // Deslocamento temporal do ciclo de nível. Permite que os botões "forcem"
-        // um sentido de fluxo sem que o nível da água "pule", mantendo a troca
-        // automática de modo consistente.
+        let flowPipes = [];
+        let flowModeSign = -1;
+        let currentMode = "turbine";
         let levelTimeOffset = 0;
-        let flowShift = 0;            // deslocamento ACUMULADO do padrão de fluxo nos tubos
-        let waveTime = 0;             // "tempo direcional" ACUMULADO das ondas da superfície
-        let lastFrameT = 0;           // instante do frame anterior (para o dt)
+        let flowShift = 0;
+        let waveTime = 0;
+        let lastFrameT = 0;
         const clock = new THREE.Clock();
 
         btn.addEventListener("click", function () {
@@ -937,10 +1041,6 @@
         });
 
         function setMode(mode) {
-            // flowModeSign define o sentido do deslocamento do padrão de setas e
-            // das ondas na superfície:
-            //  -1 → Turbinamento: água desce (Superior → Casa de Máquinas → Inferior)
-            //  +1 → Bombeamento: água sobe (Inferior → Casa de Máquinas → Superior)
             flowModeSign = (mode === "pump") ? 1 : -1;
             currentMode = mode;
             if (btnTurbine && btnPump) {
@@ -981,9 +1081,6 @@
             return Math.acos(-v) * halfMove / Math.PI;
         }
 
-        // Clique manual "força" o sentido do fluxo mantendo o NÍVEL contínuo (sem
-        // salto na altura da água). A troca AUTOMÁTICA de modo volta a ocorrer
-        // sozinha nos próximos extremos, respeitando WATER_LEVEL_HOLD.
         function forceFlowMode(mode) {
             if (mode === currentMode) return;
             const t = clock.getElapsedTime();
@@ -1011,9 +1108,6 @@
             return { run: run, drop: drop };
         }
 
-        // Textura procedural translúcida com setas escuras (chevrons) e um
-        // fino contorno claro, garantindo contraste tanto sobre tubos claros
-        // (concreto) quanto escuros (aço).
         function makeFlowTexture() {
             const w = 128, h = 256;
             const cvs = document.createElement("canvas");
@@ -1038,10 +1132,7 @@
                 }
             }
 
-            // 1) Contorno claro (mais largo, por baixo) — garante contraste
-            //    sobre materiais escuros como o aço.
             drawArrows("rgba(89,193,224,0.65)", FLOW_ARROW_THICKNESS * 1.6);
-            // 2) Traço escuro principal (mais fino, por cima).
             drawArrows(FLOW_ARROW_COLOR, FLOW_ARROW_THICKNESS);
 
             const tex = new THREE.CanvasTexture(cvs);
@@ -1052,8 +1143,6 @@
         }
 
         function init() {
-            // Garante estado inicial consistente entre variável, botões e legenda
-            // (evita duplicar o "modo padrão" em múltiplos lugares do código/HTML).
             setMode("turbine");
             const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
             const plant = window.UHR_PLANT || {};
@@ -1147,7 +1236,18 @@
             controls.target.copy(center);
             controls.enableDamping = true;
             controls.dampingFactor = 0.08;
-            controls.maxDistance = totalRun * 6;
+            controls.maxDistance = dist * 4;
+            // Botão esquerdo arrasta (desloca) a vista; botão direito orbita; roda = zoom
+            controls.mouseButtons = {
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE
+            };
+            controls.touches = {
+                ONE: THREE.TOUCH.PAN,
+                TWO: THREE.TOUCH.DOLLY_ROTATE
+            };
+            controls.screenSpacePanning = true;   // desloca também na vertical da tela (cima/baixo)
             controls.update();
 
             scene.add(new THREE.HemisphereLight(0xe8f4fa, 0x8fa3ad, 0.9));
@@ -1185,13 +1285,10 @@
                 bottom.position.set(cx, topY - depth, 0);
                 grp.add(bottom);
 
-                // A água oscila entre "quase vazio" (MIN) e "quase cheio" (MAX). A
-                // geometria do corpo d'água é criada na altura de referência (MAX) e
-                // escalada em Y a cada frame; a superfície acompanha o topo.
                 const bottomY = topY - depth;
-                const geomH = depth * WATER_LEVEL_MAX_FRACTION;                                  // altura de referência
-                const midH = depth * (WATER_LEVEL_MIN_FRACTION + WATER_LEVEL_MAX_FRACTION) / 2;   // nível médio
-                const swingH = depth * (WATER_LEVEL_MAX_FRACTION - WATER_LEVEL_MIN_FRACTION) / 2; // metade do curso
+                const geomH = depth * WATER_LEVEL_MAX_FRACTION;
+                const midH = depth * (WATER_LEVEL_MIN_FRACTION + WATER_LEVEL_MAX_FRACTION) / 2;
+                const swingH = depth * (WATER_LEVEL_MAX_FRACTION - WATER_LEVEL_MIN_FRACTION) / 2;
                 const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.82, geomH, 48, 1, false), waterBodyMat);
                 body.scale.set(rx, midH / geomH, rz);
                 body.position.set(cx, bottomY + midH / 2, 0);
@@ -1207,15 +1304,15 @@
                 surf.userData.baseX = pos.array.slice(0);
                 surf.userData.amp = Math.min(depth * 0.04, dMaxVis * 0.12);
                 surf.userData.phase = Math.random() * Math.PI * 2;
-                surf.userData.role = role;          // "upper" | "lower"
+                surf.userData.role = role;
                 surf.userData.rx = rx;
                 surf.userData.rz = rz;
                 surf.userData.depth = depth;
-                surf.userData.geomH = geomH;        // altura da geometria (referência p/ scale.y)
-                surf.userData.midH = midH;          // nível médio
-                surf.userData.swingH = swingH;      // amplitude do nível (metade do curso)
-                surf.userData.bottomY = bottomY;    // fundo do reservatório (fixo)
-                surf.userData.body = body;          // corpo d'água acompanha o nível
+                surf.userData.geomH = geomH;
+                surf.userData.midH = midH;
+                surf.userData.swingH = swingH;
+                surf.userData.bottomY = bottomY;
+                surf.userData.body = body;
                 waterSurfaces.push(surf);
                 grp.add(surf);
 
@@ -1317,7 +1414,6 @@
                 scene.add(grp);
             })();
 
-            // ── Tubulações (corpo PBR + camada de fluxo animada sobreposta) ─────────
             function pipeRadius(seg) {
                 return Math.max(((seg.diameter || 1) / 2) * PIPE_DIAMETER_SCALE, totalRun * 0.002);
             }
@@ -1328,7 +1424,6 @@
                 if (len <= 0) return;
                 const radius = pipeRadius(seg);
 
-                // 1) Corpo sólido do tubo (aparência de metal/concreto, sem textura).
                 const geo = new THREE.CylinderGeometry(radius, radius, len, 24, 1, false);
                 const baseColor = MAT_COLORS[seg.material] || DEFAULT_PIPE_COLOR;
                 const bodyMat = new THREE.MeshStandardMaterial({
@@ -1343,19 +1438,12 @@
                 scene.add(mesh);
                 hoverables.push(mesh);
 
-                // 2) Camada de FLUXO animada: um ARCO parcial (não o cilindro
-                //    completo) na face "externa" do tubo, de modo que a seta
-                //    ocupe sempre a LARGURA COMPLETA da parte visível do tubo,
-                //    em vez de ficar concentrada perto das bordas/silhueta.
                 const flowTex = makeFlowTexture();
                 flowTex.wrapS = THREE.RepeatWrapping;
                 flowTex.wrapT = THREE.RepeatWrapping;
 
                 const repeatsAlongLength = Math.max(1, Math.round(len / (radius * FLOW_REPEAT_DIVISOR)));
 
-                // Arco de FLOW_ARC_DEGREES graus, centralizado na face frontal
-                // do cilindro (thetaStart/thetaLength restringem a geometria a
-                // uma "fatia" em vez da volta completa de 360°).
                 const arcRad = THREE.MathUtils.degToRad(FLOW_ARC_DEGREES);
                 const thetaStart = -arcRad / 2;
                 const flowGeo = new THREE.CylinderGeometry(
@@ -1363,9 +1451,6 @@
                     len * 0.99, 32, 1, true, thetaStart, arcRad
                 );
 
-                // Reindexa o U para ocupar 0..1 em todo o arco (por padrão, o
-                // Three.js já mapeia U proporcionalmente ao ângulo do arco
-                // gerado, então isso normalmente não precisa de ajuste manual).
                 const uvAttr = flowGeo.attributes.uv;
                 for (let i = 0; i < uvAttr.count; i++) {
                     uvAttr.setY(i, uvAttr.getY(i) * repeatsAlongLength);
@@ -1378,14 +1463,11 @@
                     transparent: true,
                     opacity: FLOW_OPACITY,
                     depthWrite: false,
-                    side: THREE.DoubleSide, // visível mesmo se a face normal apontar para longe da câmera
+                    side: THREE.DoubleSide,
                 });
                 const flowMesh = new THREE.Mesh(flowGeo, flowMat);
                 flowMesh.position.copy(mesh.position);
                 flowMesh.quaternion.copy(mesh.quaternion);
-                // Gira o arco para ficar centralizado na face voltada "para cima"
-                // (em direção à câmera na maior parte dos ângulos de visualização
-                // padrão desta cena). Ajuste FLOW_ARC_ROTATION se necessário.
                 flowMesh.rotateY(FLOW_ARC_ROTATION);
                 flowMesh.renderOrder = 2;
                 scene.add(flowMesh);
@@ -1459,7 +1541,9 @@
                 const sw = scaleRef * 0.14 * (cvs.width / 300);
                 spr.scale.set(sw, sw * cvs.height / cvs.width, 1);
                 spr.position.set(x, y, z);
-                return spr;
+
+                // Legendas removidas — detalhes apenas via tooltip (hover)
+                return new THREE.Group();
             }
 
             function rowHtml(k, v) {
@@ -1526,31 +1610,20 @@
                 activeMesh = null;
             });
 
-            // ── Loop de animação (fluxo nos tubos + ondulações da água) / resize ────
             (function animate() {
                 requestAnimationFrame(animate);
                 const t = clock.getElapsedTime();
                 const dt = Math.min(Math.max(t - lastFrameT, 0), 0.05);
                 lastFrameT = t;
 
-                // ── Troca AUTOMÁTICA de modo conforme o fluxo entre reservatórios ───
-                // O nível percorre uma rampa senoidal entre quase vazio/quase cheio
-                // e permanece WATER_LEVEL_HOLD segundos em cada extremo antes de
-                // inverter automaticamente Turbinamento ↔ Bombeamento.
                 const levelState = getWaterLevelState(t);
                 const levelWave = levelState.levelWave;
                 const autoMode = levelState.mode;
                 if (autoMode !== currentMode) setMode(autoMode);
 
-                // Sentido das ondas na superfície (oposto ao sinal do modo). O
-                // "tempo direcional" acumulado garante reversão SUAVE ao trocar.
-                const waveDir = -flowModeSign;   // Turbinamento → +1 | Bombeamento → -1
+                const waveDir = -flowModeSign;
                 waveTime += waveDir * dt;
 
-                // Fluxo nos tubos: ACUMULA o deslocamento (em vez de usar o tempo
-                // absoluto), de modo que, ao inverter o modo, o padrão de setas
-                // reverta suavemente — sem "salto" — já que a inversão ocorre no
-                // ponto de vazão ~zero (nível no extremo).
                 flowShift = (flowShift + flowModeSign * FLOW_SPEED * dt) % 1;
                 const shift = flowShift;
                 flowPipes.forEach(function (fp) {
@@ -1562,29 +1635,16 @@
                     fp.uvAttr.needsUpdate = true;
                 });
 
-                // Nível da água: transferência lenta entre os reservatórios. Um
-                // esvazia enquanto o outro enche (volume conservado), tornando
-                // visível a água "fluindo" de um reservatório ao outro. O nível e o
-                // modo já foram atualizados acima (levelWave / troca automática).
                 waterSurfaces.forEach(function (surf) {
                     const ud = surf.userData;
 
-                    // 1) NÍVEL — corpo d'água e superfície sobem/descem juntos, a
-                    //    partir do fundo fixo (revela a linha de rebaixamento na
-                    //    parede do reservatório). O reservatório que esvazia chega
-                    //    a "quase vazio" (MIN) justo na inversão automática do fluxo.
                     const sign = (ud.role === "upper" ? -1 : 1);
                     const newWaterH = ud.midH + sign * levelWave * ud.swingH;
                     ud.body.scale.y = newWaterH / ud.geomH;
                     ud.body.position.y = ud.bottomY + newWaterH / 2;
                     surf.position.y = ud.bottomY + newWaterH;
-                    // Ondulação proporcional à lâmina d'água: quase vazio → mais calmo.
                     const ampScale = Math.min(1, newWaterH / (ud.depth * 0.4));
 
-                    // 2) SUPERFÍCIE — soma de ondas direcionais viajantes (aspecto
-                    //    realista) com leve deslocamento horizontal de Gerstner
-                    //    (cristas estreitas, vales largos). As ondas viajam no
-                    //    sentido do fluxo e invertem ao trocar de modo.
                     const pos = surf.geometry.attributes.position;
                     const base = ud.baseX;
                     const amp = ud.amp * ampScale;
@@ -1609,6 +1669,1363 @@
                     }
                     pos.needsUpdate = true;
                     surf.geometry.computeVertexNormals();
+                });
+
+                controls.update();
+                renderer.render(scene, camera);
+            })();
+
+            if (window.ResizeObserver) new ResizeObserver(onResize).observe(stageEl);
+            window.addEventListener("resize", onResize);
+        }
+
+        function onResize() {
+            if (!renderer || !camera) return;
+            const w = stageEl.clientWidth, h = stageEl.clientHeight;
+            if (!w || !h) return;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+    })();
+    {% endraw %}
+</script>
+
+<!-- ── Esquema 3D da usina KIMI (Three.js) — construído do zero ───────────── -->
+<script>
+    {% raw %}
+    (function () {
+        "use strict";
+
+        // ════════════════════════════════════════════════════════════════════
+        //  USINA KIMI — Representação 3D em corte de uma UHR, EM ESCALA REAL
+        //  • 1 unidade = 1 metro · escala horizontal ≡ escala vertical
+        //  • Traçado hidráulico 100% derivado de pipesAll:
+        //        Δh  = L · slope / 100          (desnível do segmento, m)
+        //        run = √(L² − Δh²)              (projeção horizontal, m)
+        //    segmentos "Antes":  Reservatório Superior → Casa de Máquinas
+        //    segmentos "Depois": Casa de Máquinas → Reservatório Inferior
+        // ════════════════════════════════════════════════════════════════════
+
+        const btn = document.getElementById("uhrKimiBtn");
+        const modal = document.getElementById("uhrKimiModal");
+        const stageEl = document.getElementById("uhrKimiStage");
+        const tipEl = document.getElementById("uhrKimiTooltip");
+        const emptyEl = document.getElementById("uhrKimiEmpty");
+        const btnTurbine = document.getElementById("uhrKimiModeTurbine");
+        const btnPump = document.getElementById("uhrKimiModePump");
+        const modeLabelEl = document.getElementById("uhrKimiModeLabel");
+        if (!btn || !modal || !stageEl) return;
+
+        // ── Aparência / animação ─────────────────────────────────────────────
+        const PIPE_DIAMETER_SCALE = 4;      // ênfase visual APENAS do diâmetro (comprimento/inclinação são 1:1)
+        const FLOW_SPEED = 0.9;             // ciclos do padrão de fluxo por segundo
+        const FLOW_OPACITY = 0.62;
+        const FLOW_ARC_DEG = 150;           // arco da camada de fluxo voltado p/ o observador
+        const FLOW_ARROWS_PER_TILE = 3;
+        const FLOW_REPEAT_DIVISOR = 3.4;
+        const RUNNER_SPEED = 2.4;           // rad/s do conjunto turbina-gerador
+        const WATER_LEVEL_PERIOD = 18.0;    // s — ciclo completo de transferência de água
+        const WATER_LEVEL_HOLD = 2.5;       // s — pausa nos extremos (quase vazio/cheio)
+        const WATER_MIN_FRAC = 0.28;   // nível mínimo sempre acima da tomada d'água (20%)
+        const WATER_MAX_FRAC = 0.92;
+        const WATER_WAVES = [
+            { dx: 1.000, dy: 0.000, freq: 4.0, speed: 1.4, amp: 0.55 },
+            { dx: 0.600, dy: 0.800, freq: 7.3, speed: 2.1, amp: 0.30 },
+            { dx: -0.350, dy: 0.940, freq: 11.5, speed: 2.9, amp: 0.15 },
+        ];
+        const WATER_GERSTNER = 0.55;
+
+        const MAT_COLORS = { "Aço": 0x8fa8bb, "Concreto": 0x9aa1a8 };
+        const DEFAULT_PIPE_COLOR = 0x8fa8bb;
+
+        const UP = new THREE.Vector3(0, 1, 0);
+        const ZAX = new THREE.Vector3(0, 0, 1);
+
+        let initialized = false;
+        let renderer, scene, camera, controls, raycaster, mouse;
+        let hoverables = [], activeMesh = null;
+        let flowPipes = [], waterSurfs = [], spinners = [], clouds = [];
+        let modeArrows = { up: null, down: null };
+        let flowModeSign = -1, currentMode = "turbine";
+        let levelTimeOffset = 0, flowShift = 0, waveTime = 0, lastFrameT = 0;
+        const clock = new THREE.Clock();
+
+        btn.addEventListener("click", function () {
+            modal.showModal();
+            setTimeout(function () {
+                if (!initialized) { initialized = true; init(); }
+                else onResize();
+                if (window.lucide) window.lucide.createIcons();
+            }, 0);
+        });
+
+        // ── Utilitários ──────────────────────────────────────────────────────
+        function fmt(v, d) {
+            if (v == null || isNaN(v)) return "—";
+            return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+        }
+        let seed = 20240611;
+        function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+        function niceStep(raw) {
+            const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1e-6))));
+            const n = raw / p;
+            return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p;
+        }
+
+        // ── Modo de operação (Turbinamento ⇄ Bombeamento) ────────────────────
+        function setMode(mode) {
+            flowModeSign = (mode === "pump") ? 1 : -1;
+            currentMode = mode;
+            if (btnTurbine && btnPump) {
+                btnTurbine.classList.toggle("btn-active", mode !== "pump");
+                btnPump.classList.toggle("btn-active", mode === "pump");
+            }
+            if (modeLabelEl) modeLabelEl.textContent = "Modo: " + (mode === "pump" ? "Bombeamento" : "Turbinamento");
+            if (modeArrows.up) modeArrows.up.opacity = (mode === "pump") ? 0.95 : 0.15;
+            if (modeArrows.down) modeArrows.down.opacity = (mode === "pump") ? 0.15 : 0.95;
+        }
+        function getWaterLevelState(t) {
+            const halfMove = WATER_LEVEL_PERIOD / 2;
+            const cycle = WATER_LEVEL_PERIOD + WATER_LEVEL_HOLD * 2;
+            let u = (t + levelTimeOffset) % cycle;
+            if (u < 0) u += cycle;
+            if (u < halfMove) {
+                const p = u / halfMove;
+                return { levelWave: -Math.cos(Math.PI * p), mode: "turbine" };
+            }
+            if (u < halfMove + WATER_LEVEL_HOLD) return { levelWave: 1, mode: "turbine" };
+            if (u < WATER_LEVEL_PERIOD + WATER_LEVEL_HOLD) {
+                const p = (u - halfMove - WATER_LEVEL_HOLD) / halfMove;
+                return { levelWave: Math.cos(Math.PI * p), mode: "pump" };
+            }
+            return { levelWave: -1, mode: "pump" };
+        }
+        function cycleTimeForMode(mode, levelWave) {
+            const halfMove = WATER_LEVEL_PERIOD / 2;
+            const v = Math.max(-1, Math.min(1, levelWave));
+            if (mode === "pump") return halfMove + WATER_LEVEL_HOLD + Math.acos(v) * halfMove / Math.PI;
+            return Math.acos(-v) * halfMove / Math.PI;
+        }
+        function forceFlowMode(mode) {
+            if (mode === currentMode) return;
+            const t = clock.getElapsedTime();
+            const st = getWaterLevelState(t);
+            levelTimeOffset = cycleTimeForMode(mode, st.levelWave) - t;
+            setMode(mode);
+        }
+        if (btnTurbine) btnTurbine.addEventListener("click", function () { forceFlowMode("turbine"); });
+        if (btnPump) btnPump.addEventListener("click", function () { forceFlowMode("pump"); });
+
+        // ── Geometria do segmento (ESCALA REAL) ──────────────────────────────
+        function segGeom(seg) {
+            const L = Math.max(seg.length || 0, 0);
+            const slope = seg.slope || 0;
+            const drop = (L * slope) / 100;                              // desnível (m)
+            const run = Math.sqrt(Math.max(L * L - drop * drop, 0));     // projeção horizontal (m)
+            return { run: run, drop: drop };
+        }
+
+        // ── Textura procedural de fluxo (chevrons) ───────────────────────────
+        function makeFlowTexture() {
+            const w = 128, h = 256;
+            const cvs = document.createElement("canvas");
+            cvs.width = w; cvs.height = h;
+            const ctx = cvs.getContext("2d");
+            ctx.clearRect(0, 0, w, h);
+            const step = h / FLOW_ARROWS_PER_TILE;
+            ctx.lineCap = "round"; ctx.lineJoin = "round";
+            function draw(color, wf) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = w * wf;
+                for (let i = 0; i < FLOW_ARROWS_PER_TILE; i++) {
+                    const cy = step * i + step * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(w * 0.22, cy + step * 0.28);
+                    ctx.lineTo(w * 0.5, cy - step * 0.28);
+                    ctx.lineTo(w * 0.78, cy + step * 0.28);
+                    ctx.stroke();
+                }
+            }
+            draw("rgba(225,246,255,0.70)", 0.20);   // contorno claro (contraste)
+            draw("rgba(20,92,128,0.80)", 0.11);     // traço escuro principal
+            const tex = new THREE.CanvasTexture(cvs);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        // ── Rótulo (sprite de canvas) ────────────────────────────────────────
+        function makeLabel(text, x, y, z, scaleRef, k) {
+            const cvs = document.createElement("canvas");
+            const ctx = cvs.getContext("2d");
+            const fs = 40;
+            ctx.font = "600 " + fs + "px Inter, sans-serif";
+            const w = Math.ceil(ctx.measureText(text).width) + 34;
+            cvs.width = w; cvs.height = fs + 26;
+            const c2 = cvs.getContext("2d");
+            c2.fillStyle = "rgba(16,28,36,0.42)";
+            c2.beginPath();
+            if (c2.roundRect) c2.roundRect(0, 0, cvs.width, cvs.height, 10); else c2.rect(0, 0, cvs.width, cvs.height);
+            c2.fill();
+            c2.font = "600 " + fs + "px Inter, sans-serif";
+            c2.fillStyle = "rgba(238,246,251,0.95)";
+            c2.textBaseline = "middle";
+            c2.fillText(text, 17, cvs.height / 2);
+            const tex = new THREE.CanvasTexture(cvs);
+            tex.minFilter = THREE.LinearFilter;
+            const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+            const sw = scaleRef * 0.105 * (k || 1) * (cvs.width / 300);
+            spr.scale.set(sw, sw * cvs.height / cvs.width, 1);
+            spr.position.set(x, y, z);
+            spr.renderOrder = 6;
+            return spr;
+        }
+
+        // ── Disco com subdivisões (superfície d'água elíptica) ───────────────
+        function makeDiscGeometry(rings, sectors) {
+            const positions = [], indices = [];
+            for (let r = 0; r <= rings; r++) {
+                const rr = r / rings;
+                for (let s = 0; s <= sectors; s++) {
+                    const a = (s / sectors) * Math.PI * 2;
+                    positions.push(Math.cos(a) * rr, Math.sin(a) * rr, 0);
+                }
+            }
+            for (let r = 0; r < rings; r++) {
+                for (let s = 0; s < sectors; s++) {
+                    const i0 = r * (sectors + 1) + s;
+                    const i1 = i0 + 1;
+                    const i2 = i0 + (sectors + 1);
+                    const i3 = i2 + 1;
+                    indices.push(i0, i2, i1, i1, i2, i3);
+                }
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            geo.setIndex(indices);
+            geo.computeVertexNormals();
+            return geo;
+        }
+
+        function beamBetween(a, b, r, mat) {
+            const dir = new THREE.Vector3().subVectors(b, a);
+            const len = dir.length();
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 6), mat);
+            mesh.position.copy(a).add(dir.clone().multiplyScalar(0.5));
+            mesh.quaternion.setFromUnitVectors(UP, dir.clone().normalize());
+            return mesh;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  CONSTRUÇÃO DA CENA
+        // ════════════════════════════════════════════════════════════════════
+        function init() {
+            setMode("turbine");
+
+            const segments = Array.isArray(window.UHR_SEGMENTS) ? window.UHR_SEGMENTS : [];
+            const plant = window.UHR_PLANT || {};
+            const pipesAll = segments.filter(function (s) { return s.is_pipe; });
+
+            if (!pipesAll.length) {
+                if (emptyEl) emptyEl.style.display = "flex";
+                return;
+            }
+
+            // ── Separação por posição relativa à casa de máquinas ────────────
+            const antes = [], depois = [], fitA = [], fitD = [];
+            for (const s of segments) {
+                if (s.segment_type === "auto") continue;
+                if (s.position === "Antes") {
+                    if (s.is_pipe) antes.push(s); else fitA.push({ seg: s, after: antes.length });
+                } else {
+                    if (s.is_pipe) depois.push(s); else fitD.push({ seg: s, after: depois.length });
+                }
+            }
+
+            // ── Totais em escala real ────────────────────────────────────────
+            const gA = antes.map(segGeom), gD = depois.map(segGeom);
+            const sumK = function (arr, k) { return arr.reduce(function (a, b) { return a + b[k]; }, 0); };
+            const runA = sumK(gA, "run"), dropA = sumK(gA, "drop");
+            const runD = sumK(gD, "run"), dropD = sumK(gD, "drop");
+            const dropPipes = dropA + dropD;
+
+            let dMax = 0;
+            pipesAll.forEach(function (p) { dMax = Math.max(dMax, p.diameter || 0); });
+            if (!dMax) dMax = 3;
+            const rMax = (dMax / 2) * PIPE_DIAMETER_SCALE;   // raio visual do maior tubo
+
+            // ── Casa de máquinas: dimensões proporcionais (m) ────────────────
+            const rPH = rMax * 0.72;                          // raio interno da máquina
+            const phW = Math.max((runA + runD) * 0.05, rPH * 8.5, 14);
+            const phD = phW * 0.8;
+            const draftDrop = Math.max(rPH * 3.4, dMax * 1.1, 3.5);  // desnível interno (tubo de sucção)
+
+            // ── Reservatório superior ────────────────────────────────────────
+            const resDepthSup = Math.max(dropPipes * 0.14, dMax * 3, 10) * 10;
+            const tankW = Math.max(runA * 0.28, dMax * 8, 30);
+            const tankD = Math.max(tankW * 0.85, 24);
+            const yWSup = 0;                                   // lâmina d'água (referência de cota)
+            const yBotSup = yWSup - resDepthSup;
+            const xTankL = 0, xTankR = tankW;
+            const xIntake = xTankR - rMax * 1.2;              // limite direito do reservatório (junto à face da barragem)
+            const yIntake = yBotSup + resDepthSup * 0.20;     // ~20% da altura total (a partir do fundo)
+
+            // ── Cadeia hidráulica em ESCALA 1:1 (run/drop reais) ─────────────
+            function chainNodes(tubes, startPt) {
+                const nodes = [startPt.clone()];
+                let p = startPt.clone();
+                tubes.forEach(function (t) {
+                    const g = segGeom(t);
+                    p = p.clone().add(new THREE.Vector3(g.run, -g.drop, 0));
+                    nodes.push(p);
+                });
+                return nodes;
+            }
+            const start = new THREE.Vector3(xIntake, yIntake, 0);
+            const nodesA = chainNodes(antes, start);
+            const inlet = nodesA[nodesA.length - 1];                       // entrada da CM
+            const outlet = inlet.clone().add(new THREE.Vector3(phW, -draftDrop, 0)); // saída da CM
+            const nodesB = chainNodes(depois, outlet);
+            const end = nodesB[nodesB.length - 1];                         // descarga em jusante
+
+            // ── Reservatório inferior ────────────────────────────────────────
+            const resDepthInf = Math.max(dropPipes * 0.12, dMax * 3, 9) * 10;
+            const yWInf = end.y + Math.max(rMax * 1.6, resDepthInf * 0.45);
+            const yBotInf = yWInf - resDepthInf;
+            const basinRx = Math.max(runD * 0.30, dMax * 7, 26);
+            const basinRz = basinRx * 0.72;
+            const xBasin = end.x + basinRx * 0.85;
+
+            // ── Terreno / cotas de referência ────────────────────────────────
+            const yGroundPH = inlet.y - Math.max(dMax * 2.4, 6);           // soleira da CM
+            const yGroundLow = yBotInf - Math.max(dMax * 1.2, 4);          // terreno de jusante
+            // DEPOIS
+            const yTerrBase = Math.min(yGroundLow, yBotSup, yBotInf) - Math.max(dropPipes * 0.18, 12);
+            const peakH = Math.max(dropPipes * 0.30, dMax * 5, 14);
+            const terrDepth = Math.max((runA + runD) * 0.30, 50);
+
+            // Linha de centro da tubulação (montante → CM → jusante)
+            const pipeLine = nodesA.concat(nodesB);
+            function pipeYAt(x) {
+                for (let i = 0; i < pipeLine.length - 1; i++) {
+                    const p = pipeLine[i], q = pipeLine[i + 1];
+                    if (x >= p.x && x <= q.x) {
+                        const t = (x - p.x) / Math.max(q.x - p.x, 1e-9);
+                        return p.y + (q.y - p.y) * t;
+                    }
+                }
+                return x < pipeLine[0].x ? pipeLine[0].y : pipeLine[pipeLine.length - 1].y;
+            }
+
+            // Perfil do maciço (corte) — SEMPRE acima da tubulação: o terreno
+            // acompanha a linha do tubo + cobertura mínima, com um "morro"
+            // suave por cima, de modo que o tubo nunca saia para fora.
+            const cover = Math.max(dMax * 3, 8);   // cobertura de solo sobre o tubo (m)
+            let profPts = [
+                [xTankL - tankW * 0.9, yBotSup - 1],
+                [xTankL - 2, yBotSup],
+                [xTankR + 2, yBotSup + resDepthSup * 0.35],
+            ];
+            // Montante: do paredão da barragem até a entrada da CM
+            const xM0 = xTankR + 2, xM1 = inlet.x - phW * 0.35;
+            const NS = 48;
+            for (let i = 1; i <= NS; i++) {
+                const t = i / NS;
+                const x = xM0 + (xM1 - xM0) * t;
+                const mound = peakH * Math.pow(Math.sin(Math.PI * t), 1.4);
+                profPts.push([x, pipeYAt(x) + cover + mound]);
+            }
+            // Casa de máquinas
+            profPts.push([inlet.x + phW * 0.45, yGroundPH + 1.5]);
+            profPts.push([outlet.x + phW * 0.35, yGroundPH]);
+            // Jusante: da saída da CM até a borda do reservatório inferior
+            const xJ0 = outlet.x + phW * 0.35, xJ1 = xBasin - basinRx * 1.02;
+            const NJ = 24;
+            for (let i = 1; i <= NJ; i++) {
+                const t = i / NJ;
+                const x = xJ0 + (xJ1 - xJ0) * t;
+                const mound = Math.max(dropPipes * 0.05, 4) * Math.sin(Math.PI * t);
+                profPts.push([x, pipeYAt(x) + cover + mound]);
+            }
+            // Borda do reservatório inferior e terreno de jusante
+            profPts.push([xBasin - basinRx * 0.98, yGroundLow]);
+            profPts.push([xBasin + basinRx * 1.8, yGroundLow]);
+            for (let i = 1; i < profPts.length; i++) {
+                if (profPts[i][0] <= profPts[i - 1][0]) profPts[i][0] = profPts[i - 1][0] + 0.5;
+            }
+            function profileAt(x) {
+                for (let i = 0; i < profPts.length - 1; i++) {
+                    const p = profPts[i], q = profPts[i + 1];
+                    if (x >= p[0] && x <= q[0]) {
+                        const t = (x - p[0]) / Math.max(q[0] - p[0], 1e-9);
+                        return { y: p[1] + (q[1] - p[1]) * t, slope: (q[1] - p[1]) / Math.max(q[0] - p[0], 1e-9) };
+                    }
+                }
+                return { y: profPts[profPts.length - 1][1], slope: 0 };
+            }
+
+            const totalRunRef = Math.max(end.x - start.x, 1);
+
+            // ── Renderer / cena / câmera ─────────────────────────────────────
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xa9d3e8);
+            scene.fog = new THREE.Fog(0xa9d3e8, totalRunRef * 2.2, totalRunRef * 7);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(stageEl.clientWidth, stageEl.clientHeight);
+            stageEl.insertBefore(renderer.domElement, stageEl.firstChild);
+
+            const xMin = xTankL - tankW * 1.0;
+            const xMax = Math.max(xBasin + basinRx * 1.9, outlet.x + runD + 60);
+            const yMin = yTerrBase;
+            const yMax = yWSup + peakH + 14;
+            const sceneW = xMax - xMin, sceneH = yMax - yMin;
+            const center = new THREE.Vector3((xMin + xMax) / 2, (yMin + yMax) / 2, 0);
+
+            camera = new THREE.PerspectiveCamera(45, stageEl.clientWidth / stageEl.clientHeight, 0.1, totalRunRef * 20);
+            const vfov = THREE.MathUtils.degToRad(camera.fov);
+            const aspect0 = stageEl.clientWidth / Math.max(stageEl.clientHeight, 1);
+            const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect0);
+            const dist = Math.max((sceneW / 2) / Math.tan(hfov / 2), (sceneH / 2) / Math.tan(vfov / 2)) * 1.06;
+            camera.position.set(center.x, center.y + dist * 0.24, dist);
+            camera.lookAt(center);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.copy(center);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.maxDistance = dist * 4;
+            controls.update();
+
+            scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x6f7f68, 0.95));
+            const sun = new THREE.DirectionalLight(0xfff2d8, 0.95);
+            sun.position.set(center.x - sceneW * 0.5, yMax + sceneH * 0.6, sceneW * 0.6);
+            scene.add(sun);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // ── Materiais compartilhados ─────────────────────────────────────
+            const flowTex = makeFlowTexture();
+            const flangeMat = new THREE.MeshStandardMaterial({ color: 0x3d4f5c, metalness: 0.5, roughness: 0.5 });
+            const anchorMat = new THREE.MeshStandardMaterial({ color: 0x8b939b, roughness: 0.9, metalness: 0.05 });
+            const concreteMat = new THREE.MeshStandardMaterial({ color: 0x9fb0ba, roughness: 0.85, metalness: 0.05 });
+            const concreteDarkMat = new THREE.MeshStandardMaterial({ color: 0x7c8b95, roughness: 0.9, metalness: 0.05 });
+            const steelMat = new THREE.MeshStandardMaterial({ color: 0xc7ccd1, metalness: 0.85, roughness: 0.28 });
+            const steelDarkMat = new THREE.MeshStandardMaterial({ color: 0x8a949c, metalness: 0.8, roughness: 0.35 });
+            const copperMat = new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.7, roughness: 0.3 });
+            const coilMat = new THREE.MeshStandardMaterial({ color: 0xc9a86a, metalness: 0.5, roughness: 0.45 });
+            const waterBodyMat = new THREE.MeshStandardMaterial({
+                color: 0x2f8fb5, transparent: true, opacity: 0.5,
+                roughness: 0.15, metalness: 0.1, depthWrite: false,
+            });
+            const waterSurfMat = new THREE.MeshStandardMaterial({
+                color: 0x59c1e0, transparent: true, opacity: 0.78,
+                roughness: 0.06, metalness: 0.25, side: THREE.DoubleSide,
+            });
+            const glassMat = new THREE.MeshStandardMaterial({
+                color: 0xcfe9f2, transparent: true, opacity: 0.08,
+                roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false,
+            });
+
+            // ════════════════════════════════════════════════════════════════
+            //  TERRENO (maciço em corte) + plano de fundo + vegetação
+            // ════════════════════════════════════════════════════════════════
+            (function buildTerrain() {
+                const shape = new THREE.Shape();
+                shape.moveTo(profPts[0][0], profPts[0][1]);
+                for (let i = 1; i < profPts.length; i++) shape.lineTo(profPts[i][0], profPts[i][1]);
+                shape.lineTo(profPts[profPts.length - 1][0], yTerrBase);
+                shape.lineTo(profPts[0][0], yTerrBase);
+                shape.closePath();
+                const geo = new THREE.ExtrudeGeometry(shape, { depth: terrDepth, bevelEnabled: false });
+                geo.translate(0, 0, -terrDepth);
+                const capMat = new THREE.MeshStandardMaterial({ color: 0x8d7c66, roughness: 0.95, flatShading: true });
+                const sideMat = new THREE.MeshStandardMaterial({ color: 0x7d9268, roughness: 0.95, flatShading: true });
+                const terr = new THREE.Mesh(geo, [capMat, sideMat]);
+                scene.add(terr);
+
+                // Plano de terreno estendido + grade de referência
+                const ground = new THREE.Mesh(
+                    new THREE.PlaneGeometry(sceneW * 3.5, sceneW * 2.2),
+                    new THREE.MeshStandardMaterial({ color: 0x8aa877, roughness: 1 })
+                );
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.set(center.x, yGroundLow - 0.05, -terrDepth * 0.2);
+                scene.add(ground);
+                const grid = new THREE.GridHelper(sceneW * 2, 40, 0x5f7a55, 0x6f8a64);
+                grid.position.set(center.x, yGroundLow + 0.02, -terrDepth * 0.2);
+                grid.material.transparent = true;
+                grid.material.opacity = 0.18;
+                scene.add(grid);
+
+                // Árvores e rochas sobre o maciço (fora das estruturas)
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f35, roughness: 1 });
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x4e7a4a, roughness: 1, flatShading: true });
+                const rockMat = new THREE.MeshStandardMaterial({ color: 0x8d8d85, roughness: 1, flatShading: true });
+                function tree(x, y, z, s) {
+                    const g = new THREE.Group();
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.18 * s, 0.9 * s, 5), trunkMat);
+                    trunk.position.y = 0.45 * s;
+                    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.7 * s, 1.4 * s, 6), leafMat);
+                    f1.position.y = 1.3 * s;
+                    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.5 * s, 1.0 * s, 6), leafMat);
+                    f2.position.y = 2.0 * s;
+                    g.add(trunk, f1, f2);
+                    g.position.set(x, y, z);
+                    return g;
+                }
+                const xT1 = outlet.x + Math.max(phW * 0.7, 8);
+                function clearOfStructures(x) {
+                    if (x > xTankL - 5 && x < xTankR + 10) return false;
+                    if (x > inlet.x - 6 && x < outlet.x + 12) return false;
+                    if (x > xBasin - basinRx - 5 && x < xBasin + basinRx + 5) return false;
+                    if (x > xT1 - 8 && x < xT1 + 90) return false;
+                    return true;
+                }
+                for (let i = 0; i < 42; i++) {
+                    const x = xMin + rnd() * (xMax - xMin);
+                    const pr = profileAt(x);
+                    if (Math.abs(pr.slope) > 0.75 || !clearOfStructures(x)) continue;
+                    if (pr.y < yGroundLow + 0.5) continue;
+                    const z = -terrDepth * 0.95 + rnd() * (terrDepth * 0.9 - 3);
+                    scene.add(tree(x, pr.y - 0.1, z, dMax * (0.7 + rnd() * 0.5)));
+                }
+                for (let i = 0; i < 12; i++) {
+                    const x = xMin + rnd() * (xMax - xMin);
+                    const pr = profileAt(x);
+                    if (!clearOfStructures(x) || pr.y < yGroundLow + 0.5) continue;
+                    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 + rnd() * 1.6, 0), rockMat);
+                    rock.scale.y = 0.6;
+                    rock.position.set(x, pr.y + 0.2, -terrDepth * 0.9 + rnd() * (terrDepth * 0.8 - 3));
+                    rock.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+                    scene.add(rock);
+                }
+            })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  RESERVATÓRIO SUPERIOR (barragem, tomada d'água, água animada)
+            // ════════════════════════════════════════════════════════════════
+            const resSupInfo = {
+                __reservoir: true, name: "Reservatório Superior", role: "Montante (armazenamento)",
+                depth: resDepthSup, width: tankW, level_ref: yWSup,
+            };
+            const damInfo = { __dam: true, name: "Barragem (gravidade)", height: resDepthSup + Math.max(dMax * 0.8, 2) };
+            (function buildUpperReservoir() {
+                const grp = new THREE.Group();
+                const parapet = Math.max(dMax * 0.8, 2);
+                const wallT = Math.max(dMax * 0.6, 1.5);
+                const damH = resDepthSup + parapet;
+                const damW = damH * 0.75;
+                const damTopW = Math.max(dMax * 0.9, 2.5);
+
+                // Barragem de gravidade (seção trapezoidal extrudada)
+                const dShape = new THREE.Shape();
+                dShape.moveTo(0, 0);
+                dShape.lineTo(damW, 0);
+                dShape.lineTo(damTopW, damH);
+                dShape.lineTo(0, damH);
+                dShape.closePath();
+                const dGeo = new THREE.ExtrudeGeometry(dShape, { depth: tankD, bevelEnabled: false });
+                dGeo.translate(0, 0, -tankD);
+                const dam = new THREE.Mesh(dGeo, concreteMat);
+                dam.position.set(xTankR, yBotSup - 1.5, 0.15);
+                dam.userData.seg = damInfo;
+                hoverables.push(dam);
+                grp.add(dam);
+                const crest = new THREE.Mesh(new THREE.BoxGeometry(damTopW + 0.8, 0.6, tankD), concreteDarkMat);
+                crest.position.set(xTankR + damTopW / 2, yBotSup - 1.5 + damH + 0.3, -tankD / 2);
+                grp.add(crest);
+
+                // Parede esquerda e parede de fundo do tanque
+                const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, damH, tankD), concreteMat);
+                leftWall.position.set(xTankL - wallT / 2, yBotSup + damH / 2 - 1, -tankD / 2);
+                grp.add(leftWall);
+                const backWall = new THREE.Mesh(new THREE.BoxGeometry(tankW + damW + wallT, damH, wallT), concreteMat);
+                backWall.position.set((xTankL + xTankR + damW) / 2 - wallT, yBotSup + damH / 2 - 1, -tankD + wallT / 2);
+                grp.add(backWall);
+
+                // Frente de vidro (efeito "aquário" do corte) + esqueleto
+                const glass = new THREE.Mesh(new THREE.PlaneGeometry(tankW, resDepthSup), glassMat);
+                glass.position.set((xTankL + xTankR) / 2, yBotSup + resDepthSup / 2, 0.06);
+                grp.add(glass);
+                const frameMat = new THREE.MeshBasicMaterial({ color: 0xe8f4f8, transparent: true, opacity: 0.35 });
+                for (let i = 0; i <= 4; i++) {
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.35, resDepthSup, 0.12), frameMat);
+                    bar.position.set(xTankL + (tankW * i) / 4, yBotSup + resDepthSup / 2, 0.1);
+                    grp.add(bar);
+                }
+                [0, 1].forEach(function (k) {
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(tankW, 0.35, 0.12), frameMat);
+                    bar.position.set((xTankL + xTankR) / 2, k ? yWSup : yBotSup, 0.1);
+                    grp.add(bar);
+                });
+
+                // Torre de tomada d'água + grade (trash rack) + boca de sino
+                const towW = rMax * 2.6;
+                const tower = new THREE.Mesh(new THREE.BoxGeometry(towW, (yWSup + 3) - yBotSup, towW), concreteDarkMat);
+                tower.position.set(xIntake - rMax * 1.6, (yWSup + 3 + yBotSup) / 2, 0);
+                grp.add(tower);
+                const towerCap = new THREE.Mesh(new THREE.BoxGeometry(towW * 1.2, 0.5, towW * 1.2), concreteMat);
+                towerCap.position.set(xIntake - rMax * 1.6, yWSup + 3.25, 0);
+                grp.add(towerCap);
+                for (let i = 0; i < 5; i++) {
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.18, rMax * 2.0, 0.18), flangeMat);
+                    bar.position.set(xIntake - rMax * 0.4, yIntake, -rMax * 0.9 + i * rMax * 0.45);
+                    grp.add(bar);
+                }
+                const bell = new THREE.Mesh(new THREE.CylinderGeometry(rMax * 1.0, rMax * 1.45, rMax * 1.4, 18), steelDarkMat);
+                bell.quaternion.setFromUnitVectors(UP, new THREE.Vector3(1, 0, 0));
+                bell.position.set(xIntake - rMax * 0.1, yIntake, 0);
+                grp.add(bell);
+
+                // Corpo d'água + superfície ondulada
+                const geomH = resDepthSup * WATER_MAX_FRAC;
+                const midH = resDepthSup * (WATER_MIN_FRAC + WATER_MAX_FRAC) / 2;
+                const swingH = resDepthSup * (WATER_MAX_FRAC - WATER_MIN_FRAC) / 2;
+                const body = new THREE.Mesh(new THREE.BoxGeometry(tankW - 0.6, geomH, tankD - 0.6), waterBodyMat);
+                body.scale.y = midH / geomH;
+                body.position.set((xTankL + xTankR) / 2, yBotSup + midH / 2, -tankD / 2 + 0.3);
+                body.userData.seg = resSupInfo;
+                hoverables.push(body);
+                grp.add(body);
+
+                const surfGeo = new THREE.PlaneGeometry(tankW - 0.6, tankD - 0.6, 36, 20);
+                const surf = new THREE.Mesh(surfGeo, waterSurfMat.clone());
+                surf.rotation.x = -Math.PI / 2;
+                surf.position.set((xTankL + xTankR) / 2, yBotSup + midH, -tankD / 2 + 0.3);
+                surf.userData.baseX = surfGeo.attributes.position.array.slice(0);
+                surf.userData.amp = Math.min(resDepthSup * 0.035, rMax * 0.35);
+                surf.userData.phase = rnd() * Math.PI * 2;
+                surf.userData.role = "upper";
+                surf.userData.rx = tankW / 2; surf.userData.rz = tankD / 2;
+                surf.userData.depth = resDepthSup;
+                surf.userData.geomH = geomH; surf.userData.midH = midH; surf.userData.swingH = swingH;
+                surf.userData.bottomY = yBotSup; surf.userData.body = body;
+                waterSurfs.push(surf);
+                grp.add(surf);
+
+                grp.add(makeLabel("Reservatório Superior", (xTankL + xTankR) / 2, yWSup + Math.max(6, resDepthSup * 0.4), 0, totalRunRef, 1));
+                scene.add(grp);
+            })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  TUBULAÇÕES (escala 1:1) — corpo + fluxo + flanges + blocos + rótulo
+            // ════════════════════════════════════════════════════════════════
+            function pipeRadius(seg) {
+                return Math.max(((seg.diameter || 1) / 2) * PIPE_DIAMETER_SCALE, totalRunRef * 0.0016);
+            }
+            function addPipe(seg, a, b, tag) {
+                const dir = new THREE.Vector3().subVectors(b, a);
+                const len = dir.length();
+                if (len <= 0.001) return;
+                const r = pipeRadius(seg);
+                const baseColor = MAT_COLORS[seg.material] || DEFAULT_PIPE_COLOR;
+
+                const geo = new THREE.CylinderGeometry(r, r, len, 28, 1, false);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: baseColor,
+                    metalness: seg.material === "Aço" ? 0.6 : 0.06,
+                    roughness: seg.material === "Aço" ? 0.32 : 0.85,
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(a).add(dir.clone().multiplyScalar(0.5));
+                mesh.quaternion.setFromUnitVectors(UP, dir.clone().normalize());
+                mesh.userData.seg = seg;
+                scene.add(mesh);
+                hoverables.push(mesh);
+
+                // Camada de fluxo animada (arco voltado para +Z — os tubos estão no plano XY)
+                const arc = THREE.MathUtils.degToRad(FLOW_ARC_DEG);
+                const fGeo = new THREE.CylinderGeometry(r * 1.02, r * 1.02, len * 0.985, 24, 1, true, -arc / 2, arc);
+                const repeats = Math.max(1, Math.round(len / (r * FLOW_REPEAT_DIVISOR)));
+                const uv = fGeo.attributes.uv;
+                for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * repeats);
+                uv.needsUpdate = true;
+                const fMat = new THREE.MeshBasicMaterial({
+                    map: flowTex, color: baseColor, transparent: true,
+                    opacity: FLOW_OPACITY, depthWrite: false, side: THREE.DoubleSide,
+                });
+                const fMesh = new THREE.Mesh(fGeo, fMat);
+                fMesh.position.copy(mesh.position);
+                fMesh.quaternion.copy(mesh.quaternion);
+                fMesh.renderOrder = 2;
+                scene.add(fMesh);
+                flowPipes.push({ uvAttr: uv, baseV: new Float32Array(uv.array) });
+
+                // Flanges nas extremidades
+                [a, b].forEach(function (p) {
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.1, Math.max(r * 0.13, 0.25), 10, 26), flangeMat);
+                    ring.position.copy(p);
+                    ring.quaternion.setFromUnitVectors(ZAX, dir.clone().normalize());
+                    scene.add(ring);
+                });
+
+                // Bloco de ancoragem de concreto no meio do vão
+                const mid = a.clone().lerp(b, 0.5);
+                const block = new THREE.Mesh(new THREE.BoxGeometry(r * 2.6, r * 1.7, r * 2.2), anchorMat);
+                block.position.set(mid.x, mid.y - r - r * 0.5, 0);
+                scene.add(block);
+
+                // Rótulo do segmento (nome · comprimento · inclinação)
+                // const lbl = (seg.name || tag) + " · L=" + fmt(seg.length, 0) + " m · i=" + fmt(seg.slope, 1) + "%";
+                // scene.add(makeLabel(lbl, mid.x, mid.y + r * 2.6, r * 2.0, totalRunRef, 0.5));
+            }
+            function addFitting(seg, p) {
+                const r = Math.max(rMax * 0.9, totalRunRef * 0.004);
+                const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), flangeMat);
+                m.position.copy(p);
+                m.userData.seg = seg;
+                scene.add(m);
+                hoverables.push(m);
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            //  CASA DE MÁQUINAS (em corte): voluta, rotor, eixo, gerador, grua
+            // ════════════════════════════════════════════════════════════════
+            const phInfo = {
+                __powerhouse: true,
+                name: "Casa de Máquinas",
+                power_turbine: plant.power_turbine,
+                power_ratio: plant.power_ratio,
+                head_loss_total: plant.head_loss_total,
+                cost_total: plant.cost_total,
+                gross_head: dropPipes,
+                n_antes: antes.length,
+                n_depois: depois.length,
+            };
+            (function buildPowerhouse() {
+                const grp = new THREE.Group();
+                const unitX = (inlet.x + outlet.x) / 2;
+                const cx = unitX;
+                const subTop = inlet.y + rMax * 1.9;
+                const subBot = yGroundPH - 2.5;
+                const slabT = Math.max(rMax * 0.5, 0.8);
+
+                // Subestrutura de concreto (bloco do bloco espiral + tubo de sucção)
+                const sub = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.08, subTop - subBot, phD), concreteMat);
+                sub.position.set(cx, (subTop + subBot) / 2, -phD / 2);
+                sub.userData.seg = phInfo;
+                hoverables.push(sub);
+                grp.add(sub);
+
+                // Laje do piso da sala de máquinas
+                const slab = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.15, slabT, phD), concreteDarkMat);
+                slab.position.set(cx, subTop + slabT / 2, -phD / 2);
+                grp.add(slab);
+
+                // Redutor de entrada (tubo → voluta)
+                const volutR = rPH * 1.8;
+                const redLen = Math.max((unitX - volutR) - inlet.x, rPH);
+                const reducer = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 1.0, rMax * 0.95, redLen, 20), steelMat);
+                reducer.quaternion.setFromUnitVectors(UP, new THREE.Vector3(1, 0, 0));
+                reducer.position.set(inlet.x + redLen / 2, inlet.y, 0);
+                grp.add(reducer);
+
+                // Caixa espiral (voluta) — plano horizontal ao redor do eixo vertical
+                const volute = new THREE.Mesh(new THREE.TorusGeometry(volutR, rPH * 1.0, 16, 36), steelDarkMat);
+                volute.rotation.x = -Math.PI / 2;
+                volute.position.set(unitX, inlet.y, 0);
+                volute.userData.seg = phInfo;
+                hoverables.push(volute);
+                grp.add(volute);
+
+                // Rotor (turbina-bomba reversível) — cubo, coroa, bandeira e 9 pás
+                const yRun = inlet.y - rPH * 0.55;
+                const runner = new THREE.Group();
+                const hub = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 0.5, rPH * 0.62, rPH * 0.9, 16), steelDarkMat);
+                runner.add(hub);
+                const crown = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 1.05, rPH * 0.95, rPH * 0.22, 20), steelMat);
+                crown.position.y = rPH * 0.5;
+                runner.add(crown);
+                const band = new THREE.Mesh(new THREE.TorusGeometry(rPH * 1.0, rPH * 0.1, 8, 24), steelMat);
+                band.rotation.x = Math.PI / 2;
+                band.position.y = -rPH * 0.5;
+                runner.add(band);
+                for (let i = 0; i < 9; i++) {
+                    const holder = new THREE.Group();
+                    const blade = new THREE.Mesh(new THREE.BoxGeometry(rPH * 0.95, rPH * 0.7, rPH * 0.1), steelMat);
+                    blade.position.x = rPH * 0.62;
+                    blade.rotation.z = 0.5;
+                    blade.rotation.y = 0.6;
+                    holder.rotation.y = (i / 9) * Math.PI * 2;
+                    holder.add(blade);
+                    runner.add(holder);
+                }
+                runner.position.set(unitX, yRun, 0);
+                grp.add(runner);
+                spinners.push(runner);
+
+                // Tubo de sucção: cone + cotovelo + trecho horizontal até a saída
+                const elbowR = rPH * 1.7;
+                const yDraft = outlet.y;
+                const coneTopY = yRun - rPH * 0.5;
+                const coneBotY = yDraft + elbowR;
+                const coneH = Math.max(coneTopY - coneBotY, rPH * 0.4);
+                const draftCone = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 0.8, rPH * 1.05, coneH, 18), steelMat);
+                draftCone.position.set(unitX, (coneTopY + coneBotY) / 2, 0);
+                grp.add(draftCone);
+                const elbow = new THREE.Mesh(new THREE.TorusGeometry(elbowR, rPH * 1.02, 12, 20, Math.PI / 2), steelDarkMat);
+                elbow.rotation.z = Math.PI;
+                elbow.position.set(unitX + elbowR, yDraft + elbowR, 0);
+                grp.add(elbow);
+                const draftLen = Math.max(outlet.x + rMax * 0.4 - (unitX + elbowR), rPH);
+                const draftTube = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 1.05, rPH * 1.05, draftLen, 18), steelMat);
+                draftTube.quaternion.setFromUnitVectors(UP, new THREE.Vector3(1, 0, 0));
+                draftTube.position.set(unitX + elbowR + draftLen / 2, yDraft, 0);
+                grp.add(draftTube);
+                const flare = new THREE.Mesh(new THREE.CylinderGeometry(rMax * 0.95, rPH * 1.05, rMax * 0.9, 18), steelMat);
+                flare.quaternion.setFromUnitVectors(UP, new THREE.Vector3(1, 0, 0));
+                flare.position.set(outlet.x - rMax * 0.05, yDraft, 0);
+                grp.add(flare);
+
+                // Gerador-motor: estator com aletas, tampas, eixo, excitatriz
+                const genR = Math.max(rPH * 2.0, dMax * 1.15);
+                const genH = genR * 1.05;
+                const genY = subTop + slabT + rPH * 0.8 + genH / 2;
+                const stator = new THREE.Mesh(new THREE.CylinderGeometry(genR, genR, genH, 28), coilMat);
+                stator.position.set(unitX, genY, 0);
+                stator.userData.seg = phInfo;
+                hoverables.push(stator);
+                grp.add(stator);
+                for (let i = 0; i < 5; i++) {
+                    const rib = new THREE.Mesh(new THREE.TorusGeometry(genR * 1.01, genR * 0.035, 8, 32), steelDarkMat);
+                    rib.rotation.x = Math.PI / 2;
+                    rib.position.set(unitX, genY - genH * 0.4 + i * genH * 0.2, 0);
+                    grp.add(rib);
+                }
+                const capT = new THREE.Mesh(new THREE.CylinderGeometry(genR * 1.06, genR * 1.06, genR * 0.1, 28), steelMat);
+                capT.position.set(unitX, genY + genH / 2 + genR * 0.05, 0);
+                const capB = capT.clone();
+                capB.position.y = genY - genH / 2 - genR * 0.05;
+                grp.add(capT, capB);
+
+                const shaftTop = genY - genH / 2 - genR * 0.05;
+                const shaftBot = yRun + rPH * 0.4;
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 0.22, rPH * 0.22, shaftTop - shaftBot, 12), steelMat);
+                shaft.position.set(unitX, (shaftTop + shaftBot) / 2, 0);
+                grp.add(shaft);
+                spinners.push(shaft);
+
+                const collar = new THREE.Mesh(new THREE.CylinderGeometry(rPH * 0.5, rPH * 0.5, slabT * 1.2, 14), steelDarkMat);
+                collar.position.set(unitX, subTop + slabT / 2, 0);
+                grp.add(collar);
+
+                const thrust = new THREE.Mesh(new THREE.CylinderGeometry(genR * 0.45, genR * 0.45, genR * 0.16, 20), copperMat);
+                thrust.position.set(unitX, genY + genH / 2 + genR * 0.16, 0);
+                grp.add(thrust);
+                spinners.push(thrust);
+                const exciter = new THREE.Mesh(new THREE.CylinderGeometry(genR * 0.2, genR * 0.2, genR * 0.3, 14), steelDarkMat);
+                exciter.position.set(unitX, genY + genH / 2 + genR * 0.4, 0);
+                grp.add(exciter);
+                spinners.push(exciter);
+
+                // Galpão em corte: parede de fundo, laterais, cobertura, janelas, grua
+                const craneClear = Math.max(rPH * 3, 5);
+                const roofT = Math.max(rMax * 0.45, 0.7);
+                const roofY = genY + genH / 2 + craneClear + roofT;
+                const hallH = roofY - subTop;
+                const wallT = 0.7;
+
+                const backWall = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.15, hallH, wallT), concreteMat);
+                backWall.position.set(cx, subTop + hallH / 2, -phD + wallT / 2);
+                grp.add(backWall);
+                [-1, 1].forEach(function (s) {
+                    const side = new THREE.Mesh(new THREE.BoxGeometry(wallT, hallH, phD), concreteMat);
+                    side.position.set(cx + s * phW * 1.15 / 2, subTop + hallH / 2, -phD / 2);
+                    grp.add(side);
+                });
+                const roof = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.22, roofT, phD * 1.04), concreteDarkMat);
+                roof.position.set(cx, roofY - roofT / 2, -phD / 2 + 0.15);
+                grp.add(roof);
+                const parapet = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.22, 0.8, 0.25), concreteDarkMat);
+                parapet.position.set(cx, roofY + 0.4, 0.35);
+                grp.add(parapet);
+
+                const winMat = new THREE.MeshStandardMaterial({ color: 0xbfe2ef, emissive: 0x9fd4e8, emissiveIntensity: 0.6 });
+                for (let rI = 0; rI < 2; rI++) {
+                    for (let cI = 0; cI < 4; cI++) {
+                        const win = new THREE.Mesh(new THREE.PlaneGeometry(phW * 0.11, hallH * 0.15), winMat);
+                        win.position.set(cx - phW * 0.36 + cI * phW * 0.24, subTop + hallH * (0.55 + rI * 0.25), -phD + wallT + 0.02);
+                        grp.add(win);
+                    }
+                }
+                const door = new THREE.Mesh(new THREE.PlaneGeometry(phW * 0.14, hallH * 0.32), new THREE.MeshStandardMaterial({ color: 0x3a4a55, roughness: 0.8 }));
+                door.position.set(cx + phW * 0.38, subTop + hallH * 0.16, -phD + wallT + 0.02);
+                grp.add(door);
+
+                // Ponte rolante
+                const railY = roofY - roofT - 1.0;
+                [-0.28, -0.72].forEach(function (f) {
+                    const rail = new THREE.Mesh(new THREE.BoxGeometry(phW * 1.05, 0.5, 0.5), steelDarkMat);
+                    rail.position.set(cx, railY, phD * f);
+                    grp.add(rail);
+                });
+                const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, phD * 0.5), new THREE.MeshStandardMaterial({ color: 0xd8a03c, metalness: 0.4, roughness: 0.5 }));
+                bridge.position.set(unitX, railY + 0.75, -phD * 0.5);
+                grp.add(bridge);
+                const trolley = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 1.6), steelDarkMat);
+                trolley.position.set(unitX, railY + 1.6, -phD * 0.5);
+                grp.add(trolley);
+                const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, craneClear * 0.5, 6), flangeMat);
+                cable.position.set(unitX, railY + 1.1 - craneClear * 0.25, -phD * 0.5);
+                grp.add(cable);
+                const hook = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.5), flangeMat);
+                hook.position.set(unitX, railY + 1.1 - craneClear * 0.5, -phD * 0.5);
+                grp.add(hook);
+
+                // Ventilação e para-raios no telhado
+                [-0.3, 0.3].forEach(function (f) {
+                    const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 2.2, 12), steelDarkMat);
+                    vent.position.set(cx + f * phW, roofY + 1.1, -phD * 0.5);
+                    grp.add(vent);
+                });
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 6), flangeMat);
+                rod.position.set(cx - phW * 0.55, roofY + 1.5, -phD * 0.3);
+                const rodTip = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), copperMat);
+                rodTip.position.set(cx - phW * 0.55, roofY + 3.1, -phD * 0.3);
+                grp.add(rod, rodTip);
+
+                grp.add(makeLabel("Casa de Máquinas", cx, roofY + Math.max(5, rMax * 1.6), 0, totalRunRef, 1));
+                scene.add(grp);
+
+                // Setas de modo (verde = turbinamento/desce · azul = bombeamento/sobe)
+                function flowArrow(color) {
+                    const g = new THREE.Group();
+                    const h = Math.max(dMax * 2.2, 6);
+                    const m = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 });
+                    const sh = new THREE.Mesh(new THREE.CylinderGeometry(h * 0.09, h * 0.09, h * 0.62, 12), m);
+                    const hd = new THREE.Mesh(new THREE.ConeGeometry(h * 0.2, h * 0.38, 14), m);
+                    hd.position.y = h * 0.5;
+                    g.add(sh, hd);
+                    g.userData.mat = m;
+                    return g;
+                }
+                const upArrow = flowArrow(0x59c1e0);
+                upArrow.position.set(cx + phW * 0.78, inlet.y + Math.max(dMax * 2.2, 6) * 0.6, rMax * 2.2);
+                scene.add(upArrow);
+                const downArrow = flowArrow(0x7fc97f);
+                downArrow.rotation.z = Math.PI;
+                downArrow.position.set(cx - phW * 0.78, inlet.y + Math.max(dMax * 2.2, 6) * 0.4, rMax * 2.2);
+                scene.add(downArrow);
+                modeArrows.up = upArrow.userData.mat;
+                modeArrows.down = downArrow.userData.mat;
+                setMode(currentMode);
+            })();
+
+            // ── Constrói as tubulações (depois da CM, para usar rMax etc.) ───
+            antes.forEach(function (t, i) { addPipe(t, nodesA[i], nodesA[i + 1], "M" + (i + 1)); });
+            depois.forEach(function (t, i) { addPipe(t, nodesB[i], nodesB[i + 1], "J" + (i + 1)); });
+            fitA.forEach(function (f) { addFitting(f.seg, nodesA[Math.min(f.after, nodesA.length - 1)]); });
+            fitD.forEach(function (f) { addFitting(f.seg, nodesB[Math.min(f.after, nodesB.length - 1)]); });
+
+            // ════════════════════════════════════════════════════════════════
+            //  RESERVATÓRIO INFERIOR (bacia elíptica, água animada, guarda-corpo)
+            // ════════════════════════════════════════════════════════════════
+            const resInfInfo = {
+                __reservoir: true, name: "Reservatório Inferior", role: "Jusante (restituição)",
+                depth: resDepthInf, width: basinRx * 2, level_ref: yWInf,
+            };
+            (function buildLowerReservoir() {
+                const grp = new THREE.Group();
+                const rimH = Math.max(dMax * 0.5, 1.5);
+                const wallH = (yWInf + rimH) - yGroundLow;
+
+                // Parede da bacia — apenas a metade de trás (corte em z = 0)
+                const wall = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1, 0.92, wallH, 48, 1, true, Math.PI / 2, Math.PI),
+                    new THREE.MeshStandardMaterial({ color: 0x9fb0ba, roughness: 0.85, side: THREE.DoubleSide })
+                );
+                wall.scale.set(basinRx, 1, basinRz);
+                wall.position.set(xBasin, yGroundLow + wallH / 2, 0);
+                grp.add(wall);
+
+                const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.95, 48), concreteDarkMat);
+                bottom.rotation.x = -Math.PI / 2;
+                bottom.scale.set(basinRx, basinRz, 1);
+                bottom.position.set(xBasin, yGroundLow + 0.4, 0);
+                grp.add(bottom);
+
+                // Coroamento + guarda-corpo
+                const coping = new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 8, 64), concreteDarkMat);
+                coping.rotation.x = -Math.PI / 2;
+                coping.scale.set(basinRx, basinRz, 1);
+                coping.position.set(xBasin, yWInf + rimH, 0);
+                grp.add(coping);
+                for (let i = 0; i < 24; i++) {
+                    const a = (i / 24) * Math.PI * 2;
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.2, 6), flangeMat);
+                    post.position.set(xBasin + Math.cos(a) * basinRx * 1.02, yWInf + rimH + 0.6, Math.sin(a) * basinRz * 1.02);
+                    grp.add(post);
+                }
+                const rail = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 6, 64), flangeMat);
+                rail.rotation.x = -Math.PI / 2;
+                rail.scale.set(basinRx * 1.02, basinRz * 1.02, 1);
+                rail.position.set(xBasin, yWInf + rimH + 1.2, 0);
+                grp.add(rail);
+
+                // Corpo d'água + superfície (disco elíptico com ondas)
+                const geomH = resDepthInf * WATER_MAX_FRAC;
+                const midH = resDepthInf * (WATER_MIN_FRAC + WATER_MAX_FRAC) / 2;
+                const swingH = resDepthInf * (WATER_MAX_FRAC - WATER_MIN_FRAC) / 2;
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.9, geomH, 48, 1, false), waterBodyMat);
+                body.scale.set(basinRx, midH / geomH, basinRz);
+                body.position.set(xBasin, yBotInf + midH / 2, 0);
+                body.userData.seg = resInfInfo;
+                hoverables.push(body);
+                grp.add(body);
+
+                const surfGeo = makeDiscGeometry(12, 48);
+                const surf = new THREE.Mesh(surfGeo, waterSurfMat.clone());
+                surf.rotation.x = -Math.PI / 2;
+                surf.scale.set(basinRx * 0.97, basinRz * 0.97, 1);
+                surf.position.set(xBasin, yBotInf + midH, 0);
+                surf.userData.baseX = surfGeo.attributes.position.array.slice(0);
+                surf.userData.amp = Math.min(resDepthInf * 0.04, rMax * 0.35);
+                surf.userData.phase = rnd() * Math.PI * 2;
+                surf.userData.role = "lower";
+                surf.userData.rx = basinRx; surf.userData.rz = basinRz;
+                surf.userData.depth = resDepthInf;
+                surf.userData.geomH = geomH; surf.userData.midH = midH; surf.userData.swingH = swingH;
+                surf.userData.bottomY = yBotInf; surf.userData.body = body;
+                waterSurfs.push(surf);
+                grp.add(surf);
+
+                // Estrutura de descarga (flare + grade) na saída do tubo
+                const outCone = new THREE.Mesh(new THREE.CylinderGeometry(rMax * 1.5, rMax * 1.0, rMax * 1.2, 18), steelDarkMat);
+                outCone.quaternion.setFromUnitVectors(UP, new THREE.Vector3(1, 0, 0));
+                outCone.position.set(end.x + rMax * 0.6, end.y, 0);
+                grp.add(outCone);
+                for (let i = 0; i < 4; i++) {
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.15, rMax * 2.4, 0.15), flangeMat);
+                    bar.position.set(end.x + rMax * 1.2, end.y, -rMax * 0.9 + i * rMax * 0.6);
+                    grp.add(bar);
+                }
+
+                grp.add(makeLabel("Reservatório Inferior", xBasin, yWInf + rimH + Math.max(6, resDepthInf * 0.45), 0, totalRunRef, 1));
+                scene.add(grp);
+            })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  PÁTIO ELÉTRICO: transformador, torres de transmissão e cabos
+            // ════════════════════════════════════════════════════════════════
+            (function buildElectricalYard() {
+                const xT = outlet.x + Math.max(phW * 0.7, 8);
+                const yT = profileAt(xT).y;
+                // Transformador
+                const pad = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 6), anchorMat);
+                pad.position.set(xT, yT + 0.3, -phD * 0.35);
+                scene.add(pad);
+                const tank = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.2, 3.0), new THREE.MeshStandardMaterial({ color: 0x5f7a6a, metalness: 0.4, roughness: 0.5 }));
+                tank.position.set(xT, yT + 0.6 + 1.6, -phD * 0.35);
+                scene.add(tank);
+                for (let i = 0; i < 6; i++) {
+                    [-1, 1].forEach(function (s) {
+                        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.6, 2.8), steelDarkMat);
+                        fin.position.set(xT - 1.6 + i * 0.64, yT + 0.6 + 1.6, -phD * 0.35 + s * 1.6);
+                        scene.add(fin);
+                    });
+                }
+                const bushTops = [];
+                for (let i = 0; i < 3; i++) {
+                    const bx = xT - 1.2 + i * 1.2;
+                    const bush = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.6, 8), steelMat);
+                    bush.position.set(bx, yT + 0.6 + 3.2 + 0.8, -phD * 0.35);
+                    scene.add(bush);
+                    bushTops.push(new THREE.Vector3(bx, yT + 0.6 + 3.2 + 1.6, -phD * 0.35));
+                }
+
+                // Torres de transmissão (treliça) + cabos em catenária
+                const wireMat = new THREE.MeshBasicMaterial({ color: 0x2b3a44 });
+                function tower(x, z, h) {
+                    const g = new THREE.Group();
+                    const yB = profileAt(x).y;
+                    const baseW = h * 0.16, topW = h * 0.05, legR = h * 0.012;
+                    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) {
+                        g.add(beamBetween(
+                            new THREE.Vector3(x + s[0] * baseW / 2, yB, z + s[1] * baseW / 2),
+                            new THREE.Vector3(x + s[0] * topW / 2, yB + h, z + s[1] * topW / 2),
+                            legR, steelDarkMat));
+                    });
+                    for (let i = 1; i <= 3; i++) {
+                        const w0 = baseW + (topW - baseW) * (i / 4);
+                        const ring = new THREE.Mesh(new THREE.BoxGeometry(w0, legR * 1.4, w0), steelDarkMat);
+                        ring.position.set(x, yB + h * i / 4, z);
+                        g.add(ring);
+                    }
+                    const arms = [];
+                    [0.98, 0.88, 0.78].forEach(function (f, idx) {
+                        const w = h * (0.22 - idx * 0.03);
+                        const arm = new THREE.Mesh(new THREE.BoxGeometry(w, legR * 1.6, legR * 1.6), steelDarkMat);
+                        arm.position.set(x, yB + h * f, z);
+                        g.add(arm);
+                        arms.push({ y: yB + h * f - h * 0.02, half: w / 2 });
+                    });
+                    const peak = new THREE.Mesh(new THREE.ConeGeometry(topW * 0.9, h * 0.05, 4), steelDarkMat);
+                    peak.position.set(x, yB + h * 1.02, z);
+                    g.add(peak);
+                    scene.add(g);
+                    return { x: x, z: z, arms: arms, topY: yB + h };
+                }
+                function wire(p0, p1, sag) {
+                    const mid = p0.clone().lerp(p1, 0.5);
+                    mid.y -= sag;
+                    const curve = new THREE.QuadraticBezierCurve3(p0, mid, p1);
+                    const geo = new THREE.TubeGeometry(curve, 20, 0.14, 5, false);
+                    scene.add(new THREE.Mesh(geo, wireMat));
+                }
+                const towH = Math.max(dropPipes * 0.22, 15);
+                const t1 = tower(xT + towH * 0.8, -phD * 0.9, towH);
+                const span = Math.max(runD * 0.5, 40);
+                const t2 = tower(t1.x + span, -phD * 0.9, towH * 0.94);
+                t1.arms.forEach(function (a1, i) {
+                    const a2 = t2.arms[i];
+                    [-1, 1].forEach(function (s) {
+                        const p1 = new THREE.Vector3(t1.x + s * a1.half, a1.y, t1.z);
+                        const p2 = new THREE.Vector3(t2.x + s * a2.half, a2.y, t2.z);
+                        wire(p1, p2, span * 0.04);
+                        wire(p2, new THREE.Vector3(t2.x + span * 0.8 + s * a2.half, a2.y - span * 0.06, t2.z), span * 0.05);
+                    });
+                });
+                // Cabos do transformador até a 1ª torre
+                bushTops.forEach(function (bp, i) {
+                    wire(bp, new THREE.Vector3(t1.x - t1.arms[2].half + i * t1.arms[2].half, t1.arms[2].y, t1.z), 1.2);
+                });
+            })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  CÉU: sol + nuvens à deriva
+            // ════════════════════════════════════════════════════════════════
+            (function buildSky() {
+                const c = document.createElement("canvas");
+                c.width = c.height = 256;
+                const ctx = c.getContext("2d");
+                const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+                grad.addColorStop(0, "rgba(255,250,220,1)");
+                grad.addColorStop(0.25, "rgba(255,236,170,0.9)");
+                grad.addColorStop(1, "rgba(255,236,170,0)");
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 256, 256);
+                const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+                sunSpr.scale.set(sceneW * 0.12, sceneW * 0.12, 1);
+                sunSpr.position.set(xMin + sceneW * 0.12, yMax + sceneH * 0.28, -terrDepth * 0.8);
+                scene.add(sunSpr);
+
+                const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, transparent: true, opacity: 0.92 });
+                for (let k = 0; k < 6; k++) {
+                    const g = new THREE.Group();
+                    const s = Math.max(sceneW * 0.02, 6) * (0.7 + rnd() * 0.6);
+                    const n = 4 + Math.floor(rnd() * 3);
+                    for (let i = 0; i < n; i++) {
+                        const sp = new THREE.Mesh(new THREE.SphereGeometry(s * (0.5 + rnd() * 0.5), 14, 10), cloudMat);
+                        sp.position.set((i - n / 2) * s * 0.7 + rnd() * s * 0.3, rnd() * s * 0.25, (rnd() - 0.5) * s * 0.5);
+                        sp.scale.y = 0.55;
+                        g.add(sp);
+                    }
+                    g.position.set(xMin + rnd() * (xMax - xMin), yMax + 8 + rnd() * sceneH * 0.3, -terrDepth * (0.3 + rnd() * 0.5));
+                    g.userData.k = 0.6 + rnd() * 1.2;
+                    clouds.push(g);
+                    scene.add(g);
+                }
+            })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  RÉGUAS DE ESCALA (horizontal e vertical) + título
+            // ════════════════════════════════════════════════════════════════
+            // (function buildRulers() {
+            //     const RULER_Z = terrDepth * 0.15 + 10;
+            //     const lineMat = new THREE.MeshBasicMaterial({ color: 0x2b3a44, transparent: true, opacity: 0.55 });
+            //     const x0 = xTankL, x1 = xBasin + basinRx;
+            //     const yLine = yGroundLow + 2;
+
+            //     const hLine = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.35, 0.35), lineMat);
+            //     hLine.position.set((x0 + x1) / 2, yLine, RULER_Z);
+            //     scene.add(hLine);
+            //     const stepH = niceStep((x1 - x0) / 8);
+            //     for (let x = Math.ceil(x0 / stepH) * stepH; x <= x1 + 0.001; x += stepH) {
+            //         const tick = new THREE.Mesh(new THREE.BoxGeometry(0.35, 3.2, 0.35), lineMat);
+            //         tick.position.set(x, yLine, RULER_Z);
+            //         scene.add(tick);
+            //         scene.add(makeLabel(fmt(x - x0, 0) + " m", x, yLine - 4.5, RULER_Z, totalRunRef, 0.42));
+            //     }
+            //     scene.add(makeLabel("Distância horizontal (escala 1:1)", (x0 + x1) / 2, yLine - 9.5, RULER_Z, totalRunRef, 0.5));
+
+            //     const xV = xTankL - tankW * 0.55;
+            //     const vLine = new THREE.Mesh(new THREE.BoxGeometry(0.35, yWSup - yBotInf + 4, 0.35), lineMat);
+            //     vLine.position.set(xV, (yWSup + yBotInf) / 2, RULER_Z);
+            //     scene.add(vLine);
+            //     const stepV = niceStep((yWSup - yBotInf) / 6);
+            //     for (let y = Math.ceil(yBotInf / stepV) * stepV; y <= yWSup + 0.001; y += stepV) {
+            //         const tick = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 0.35), lineMat);
+            //         tick.position.set(xV, y, RULER_Z);
+            //         scene.add(tick);
+            //         scene.add(makeLabel(fmt(y - yWSup, 0) + " m", xV - 8, y, RULER_Z, totalRunRef, 0.42));
+            //     }
+            //     scene.add(makeLabel("Cota (m) — ref. lâmina superior", xV, yWSup + 5, RULER_Z, totalRunRef, 0.5));
+
+            //     scene.add(makeLabel(
+            //         "UHR em corte · Desnível da tubulação: " + fmt(dropPipes, 1) + " m · Avanço: " + fmt(runA + phW + runD, 1) +
+            //         " m · Escala 1:1 (H = V) · 1 unid. = 1 m",
+            //         center.x, yMax - 2, 0, totalRunRef, 0.9));
+            // })();
+
+            // ════════════════════════════════════════════════════════════════
+            //  TOOLTIP / HOVER
+            // ════════════════════════════════════════════════════════════════
+            function rowHtml(k, v) {
+                return '<div class="uhr-tt-row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
+            }
+            function tipHtml(seg) {
+                if (seg.__powerhouse) {
+                    let r = '<div class="uhr-tt-title">' + seg.name + '<span class="uhr-tt-badge">Usina</span></div>';
+                    if (seg.power_turbine) r += rowHtml("Potência/turbina", fmt(seg.power_turbine, 1) + " MW");
+                    if (seg.power_ratio) r += rowHtml("Relação Pt/Pb", fmt(seg.power_ratio, 3));
+                    r += rowHtml("Desnível da tubulação", fmt(seg.gross_head, 1) + " m");
+                    if (seg.head_loss_total) r += rowHtml("Perda de carga total", fmt(seg.head_loss_total, 4) + " m");
+                    r += rowHtml("Tubos a montante", seg.n_antes);
+                    r += rowHtml("Tubos a jusante", seg.n_depois);
+                    if (seg.cost_total) r += rowHtml("Custo total", fmt(seg.cost_total, 1) + " mi R$");
+                    return r;
+                }
+                if (seg.__reservoir) {
+                    let r = '<div class="uhr-tt-title">' + seg.name + '<span class="uhr-tt-badge">Reservatório</span></div>';
+                    r += rowHtml("Função", seg.role);
+                    r += rowHtml("Profundidade", fmt(seg.depth, 1) + " m");
+                    r += rowHtml("Largura", fmt(seg.width, 1) + " m");
+                    r += rowHtml("Cota da lâmina (ref.)", fmt(seg.level_ref, 1) + " m");
+                    return r;
+                }
+                if (seg.__dam) {
+                    let r = '<div class="uhr-tt-title">' + seg.name + '<span class="uhr-tt-badge">Barragem</span></div>';
+                    r += rowHtml("Altura", fmt(seg.height, 1) + " m");
+                    r += rowHtml("Tipo", "Gravidade de concreto");
+                    return r;
+                }
+                let r = '<div class="uhr-tt-title">' + (seg.name || "Segmento") +
+                    '<span class="uhr-tt-badge">' + (seg.is_pipe ? "Tubo" : (seg.kind || "Peça")) + "</span></div>";
+                r += rowHtml("Posição", seg.position || "—");
+                if (seg.is_pipe) {
+                    r += rowHtml("Material", seg.material || "—");
+                    r += rowHtml("Diâmetro", fmt(seg.diameter, 3) + " m");
+                    if (seg.length != null) r += rowHtml("Comprimento", fmt(seg.length, 1) + " m");
+                    if (seg.slope != null) r += rowHtml("Inclinação", fmt(seg.slope, 2) + " %");
+                    const g = segGeom(seg);
+                    r += rowHtml("Projeção horiz.", fmt(g.run, 1) + " m");
+                    r += rowHtml("Desnível", fmt(g.drop, 2) + " m");
+                }
+                r += rowHtml("Velocidade", fmt(seg.velocity, 3) + " m/s");
+                r += rowHtml("Perda de carga", fmt(seg.head_loss, 4) + " m");
+                return r;
+            }
+
+            renderer.domElement.addEventListener("mousemove", function (e) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(hoverables, false);
+                if (hits.length) {
+                    const mesh = hits[0].object;
+                    if (activeMesh !== mesh) {
+                        if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                        activeMesh = mesh;
+                        if (mesh.material.emissive) mesh.material.emissive.setHex(0x224455);
+                        tipEl.innerHTML = tipHtml(mesh.userData.seg);
+                    }
+                    tipEl.style.display = "block";
+                    let tx = e.clientX - rect.left + 14, ty = e.clientY - rect.top + 14;
+                    if (tx + tipEl.offsetWidth > rect.width) tx = e.clientX - rect.left - tipEl.offsetWidth - 14;
+                    if (ty + tipEl.offsetHeight > rect.height) ty = e.clientY - rect.top - tipEl.offsetHeight - 14;
+                    tipEl.style.left = Math.max(4, tx) + "px";
+                    tipEl.style.top = Math.max(4, ty) + "px";
+                    renderer.domElement.style.cursor = "pointer";
+                } else {
+                    if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                    activeMesh = null;
+                    tipEl.style.display = "none";
+                    renderer.domElement.style.cursor = "";
+                }
+            });
+            renderer.domElement.addEventListener("mouseleave", function () {
+                tipEl.style.display = "none";
+                if (activeMesh && activeMesh.material.emissive) activeMesh.material.emissive.setHex(0x000000);
+                activeMesh = null;
+            });
+
+            // ════════════════════════════════════════════════════════════════
+            //  LOOP DE ANIMAÇÃO
+            // ════════════════════════════════════════════════════════════════
+            (function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime();
+                const dt = Math.min(Math.max(t - lastFrameT, 0), 0.05);
+                lastFrameT = t;
+
+                // Troca automática de modo conforme a transferência de água
+                const levelState = getWaterLevelState(t);
+                const levelWave = levelState.levelWave;
+                if (levelState.mode !== currentMode) setMode(levelState.mode);
+
+                const waveDir = -flowModeSign;
+                waveTime += waveDir * dt;
+
+                // Fluxo nos tubos (deslocamento acumulado → reversão suave)
+                flowShift = (flowShift + flowModeSign * FLOW_SPEED * dt) % 1;
+                const shift = flowShift;
+                flowPipes.forEach(function (fp) {
+                    const arr = fp.uvAttr.array;
+                    const base = fp.baseV;
+                    for (let i = 0; i < fp.uvAttr.count; i++) {
+                        arr[i * 2 + 1] = base[i * 2 + 1] + shift;
+                    }
+                    fp.uvAttr.needsUpdate = true;
+                });
+
+                // Rotação do conjunto turbina-bomba / gerador-motor
+                spinners.forEach(function (s) { s.rotation.y += flowModeSign * RUNNER_SPEED * dt; });
+
+                // Nível + ondas da água nos reservatórios
+                waterSurfs.forEach(function (surf) {
+                    const ud = surf.userData;
+                    const sign = (ud.role === "upper" ? -1 : 1);
+                    const newWaterH = ud.midH + sign * levelWave * ud.swingH;
+                    ud.body.scale.y = newWaterH / ud.geomH;
+                    ud.body.position.y = ud.bottomY + newWaterH / 2;
+                    surf.position.y = ud.bottomY + newWaterH;
+                    const ampScale = Math.min(1, newWaterH / (ud.depth * 0.4));
+
+                    const pos = surf.geometry.attributes.position;
+                    const base = ud.baseX;
+                    const amp = ud.amp * ampScale;
+                    const ph = ud.phase;
+                    const gX = (WATER_GERSTNER * amp) / ud.rx;
+                    const gY = (WATER_GERSTNER * amp) / ud.rz;
+                    for (let i = 0; i < pos.count; i++) {
+                        const bx = base[i * 3];
+                        const by = base[i * 3 + 1];
+                        let z = 0, ox = 0, oy = 0;
+                        for (let w = 0; w < WATER_WAVES.length; w++) {
+                            const wv = WATER_WAVES[w];
+                            const arg = (wv.dx * bx + wv.dy * by) * wv.freq - waveTime * wv.speed + ph;
+                            z += wv.amp * Math.sin(arg);
+                            const c = Math.cos(arg);
+                            ox += wv.amp * wv.dx * c;
+                            oy += wv.amp * wv.dy * c;
+                        }
+                        pos.setX(i, bx + gX * ox);
+                        pos.setY(i, by + gY * oy);
+                        pos.setZ(i, amp * z);
+                    }
+                    pos.needsUpdate = true;
+                    surf.geometry.computeVertexNormals();
+                });
+
+                // Nuvens à deriva
+                clouds.forEach(function (c) {
+                    c.position.x += dt * c.userData.k * 1.5;
+                    if (c.position.x > xMax + 60) c.position.x = xMin - 60;
                 });
 
                 controls.update();
