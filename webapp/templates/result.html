@@ -2022,13 +2022,24 @@
             // acompanha a linha do tubo + cobertura mínima, com um "morro"
             // suave por cima, de modo que o tubo nunca saia para fora.
             const cover = Math.max(dMax * 3, 8);   // cobertura de solo sobre o tubo (m)
+            // DEPOIS — o terreno ACOMPANHA a face de jusante da barragem: sobe junto com
+            // a rampa e, a partir do pé de jusante, segue a tubulação + cobertura, de modo
+            // que o tubo nunca fique exposto entre a barragem e o maciço.
+            const damH_prof = resDepthSup + Math.max(dMax * 0.8, 2);
+            const damW_prof = damH_prof * 0.75;
+            const xDamToe = xTankR + damW_prof;   // pé de jusante da barragem
             let profPts = [
-                [xTankL - tankW * 0.9, yBotSup - 1],
+                [xTankL - tankW * 1.6, yWSup + peakH * 0.5],
+                [xTankL - tankW * 1.1, yWSup + peakH * 1.1],
+                [xTankL - tankW * 0.6, yWSup + peakH * 0.7],
+                [xTankL - tankW * 0.25, yWSup + peakH * 0.25],
                 [xTankL - 2, yBotSup],
-                [xTankR + 2, yBotSup + resDepthSup * 0.35],
+                [xTankR + 2, yBotSup],
+                // Sobe acompanhando a rampa da barragem até a cota da tubulação + cobertura
+                [xDamToe, pipeYAt(xDamToe) + cover],
             ];
-            // Montante: do paredão da barragem até a entrada da CM
-            const xM0 = xTankR + 2, xM1 = inlet.x - phW * 0.35;
+            // Montante: do pé de jusante da barragem até a entrada da CM
+            const xM0 = xDamToe, xM1 = inlet.x - phW * 0.35;
             const NS = 48;
             for (let i = 1; i <= NS; i++) {
                 const t = i / NS;
@@ -2140,8 +2151,11 @@
                 shape.lineTo(profPts[profPts.length - 1][0], yTerrBase);
                 shape.lineTo(profPts[0][0], yTerrBase);
                 shape.closePath();
+                // Face de corte do maciço 0,5 m ATRÁS do plano z = 0:
+                // elimina a coplanaridade (z-fighting) com a face de jusante da barragem
                 const geo = new THREE.ExtrudeGeometry(shape, { depth: terrDepth, bevelEnabled: false });
-                geo.translate(0, 0, -terrDepth);
+                geo.translate(0, 0, -terrDepth - 0.5);
+
                 const capMat = new THREE.MeshStandardMaterial({ color: 0x8d7c66, roughness: 0.95, flatShading: true });
                 const sideMat = new THREE.MeshStandardMaterial({ color: 0x7d9268, roughness: 0.95, flatShading: true });
                 const terr = new THREE.Mesh(geo, [capMat, sideMat]);
@@ -2228,24 +2242,213 @@
                 dShape.lineTo(damTopW, damH);
                 dShape.lineTo(0, damH);
                 dShape.closePath();
+
+                // Barragem deslocada para FRENTE do plano de corte do terreno:
+                // a face de montante fica em z = +0.6 (sempre à frente do maciço, sem z-fighting)
+                const DAM_Z_FRONT = 1.0;   // folga à frente da face de corte (z = 0)
                 const dGeo = new THREE.ExtrudeGeometry(dShape, { depth: tankD, bevelEnabled: false });
-                dGeo.translate(0, 0, -tankD);
+                dGeo.translate(0, 0, -tankD + DAM_Z_FRONT);
                 const dam = new THREE.Mesh(dGeo, concreteMat);
-                dam.position.set(xTankR, yBotSup - 1.5, 0.15);
+                dam.position.set(xTankR, yBotSup - 1.5, 0);
                 dam.userData.seg = damInfo;
                 hoverables.push(dam);
                 grp.add(dam);
                 const crest = new THREE.Mesh(new THREE.BoxGeometry(damTopW + 0.8, 0.6, tankD), concreteDarkMat);
-                crest.position.set(xTankR + damTopW / 2, yBotSup - 1.5 + damH + 0.3, -tankD / 2);
+                crest.position.set(xTankR + damTopW / 2, yBotSup - 1.5 + damH + 0.3, -tankD / 2 + DAM_Z_FRONT);
                 grp.add(crest);
 
-                // Parede esquerda e parede de fundo do tanque
-                const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, damH, tankD), concreteMat);
-                leftWall.position.set(xTankL - wallT / 2, yBotSup + damH / 2 - 1, -tankD / 2);
-                grp.add(leftWall);
-                const backWall = new THREE.Mesh(new THREE.BoxGeometry(tankW + damW + wallT, damH, wallT), concreteMat);
-                backWall.position.set((xTankL + xTankR + damW) / 2 - wallT, yBotSup + damH / 2 - 1, -tankD + wallT / 2);
-                grp.add(backWall);
+                // Encosta única em L com SAIA DE TERRA: a superfície orgânica sobe a partir
+                // da crista do reservatório e paredes verticais descem das bordas da malha
+                // até o maciço, fechando o volume (sem "céu" visível por baixo).
+                function organicMountainL(x0, x1, z0, z1, yEdge, peak, seedV) {
+                    const NX = 64, NZ = 48;
+                    const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, NX, NZ);
+                    geo.rotateX(-Math.PI / 2);
+                    geo.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+                    const pos = geo.attributes.position;
+                    const colors = new Float32Array(pos.count * 3);
+                    const cVeg = new THREE.Color(0x6f8a5e);
+                    const cRock = new THREE.Color(0x8d7c66);
+                    const cHigh = new THREE.Color(0xa39a8b);
+                    const runZ = Math.abs(z0 - z1);
+                    const runX = Math.abs(x1 - x0);
+                    function n2(px, pz) {
+                        return Math.sin(px * 0.012 + seedV) * Math.cos(pz * 0.010 + seedV * 1.3)
+                            + 0.35 * Math.sin(px * 0.028 + seedV * 2.1) * Math.sin(pz * 0.024 + seedV * 0.7);
+                    }
+                    function heightAt(x, z) {
+                        const tZ = Math.min(Math.max((z1 - z) / runZ, 0), 1);
+                        const tX = Math.min(Math.max((xTankL - x) / runX, 0), 1);
+                        const t = Math.max(tZ, tX);
+                        const along = (tZ >= tX) ? x : z;
+                        const rise = Math.pow(t, 0.9);
+                        const ridge = 0.88 + 0.12 * Math.sin(along * 0.006 + seedV * 2.0);
+                        const rough = Math.min(Math.max(0.5 + 0.5 * n2(x, z), 0), 1);
+                        let h = yEdge + peak * rise * ridge * (0.82 + 0.28 * rough);
+                        if (t < 0.05) h = yEdge + (h - yEdge) * (t / 0.05);
+                        return h;
+                    }
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i), z = pos.getZ(i);
+                        const h = heightAt(x, z);
+                        pos.setY(i, h);
+                        const f = Math.min(Math.max((h - yEdge) / peak, 0), 1);
+                        const rough = Math.min(Math.max(0.5 + 0.5 * n2(x, z), 0), 1);
+                        const c = cVeg.clone().lerp(cRock, Math.min(f * 1.4 + rough * 0.2, 1));
+                        if (f > 0.75) c.lerp(cHigh, ((f - 0.75) / 0.25) * 0.6);
+                        colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+                    }
+                    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+                    geo.computeVertexNormals();
+                    const surfMat = new THREE.MeshStandardMaterial({
+                        vertexColors: true, roughness: 0.95, metalness: 0.0, flatShading: true,
+                    });
+                    const grp = new THREE.Group();
+                    grp.add(new THREE.Mesh(geo, surfMat));
+
+                    // ── Saias de terra: paredes que descem das bordas da encosta até o maciço ──
+                    const skirtMat = new THREE.MeshStandardMaterial({
+                        color: 0x8d7c66, roughness: 0.95, metalness: 0.0, flatShading: true,
+                        side: THREE.DoubleSide,
+                    });
+                    const ySkirtBottom = yTerrBase;   // desce até a base do maciço
+                    function skirt(pts) {
+                        // pts: array de {x, z} ao longo da borda; constrói fita vertical
+                        const positions = [], indices = [];
+                        for (let i = 0; i < pts.length; i++) {
+                            const p = pts[i];
+                            const hTop = heightAt(p.x, p.z);
+                            positions.push(p.x, hTop, p.z);          // topo (na encosta)
+                            positions.push(p.x, ySkirtBottom, p.z);  // base (no maciço)
+                        }
+                        for (let i = 0; i < pts.length - 1; i++) {
+                            const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+                            indices.push(a, b, c, b, d, c);
+                        }
+                        const g = new THREE.BufferGeometry();
+                        g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+                        g.setIndex(indices);
+                        g.computeVertexNormals();
+                        return new THREE.Mesh(g, skirtMat);
+                    }
+                    // Saia da borda ESQUERDA (x = x0, de z0 a z1)
+                    const ptsLeft = [];
+                    for (let i = 0; i <= 24; i++) ptsLeft.push({ x: x0, z: z0 + (z1 - z0) * i / 24 });
+                    grp.add(skirt(ptsLeft));
+                    // Saia da borda de FUNDO (z = z0, de x0 a x1)
+                    const ptsBack = [];
+                    for (let i = 0; i <= 32; i++) ptsBack.push({ x: x0 + (x1 - x0) * i / 32, z: z0 });
+                    grp.add(skirt(ptsBack));
+                    // Saia da borda DIREITA (x = x1, de z0 a z1) — fecha atrás da barragem
+                    const ptsRight = [];
+                    for (let i = 0; i <= 24; i++) ptsRight.push({ x: x1, z: z0 + (z1 - z0) * i / 24 });
+                    grp.add(skirt(ptsRight));
+
+                    return grp;
+                }
+
+                // Encosta única em L: cobre o FUNDO (z < −tankD) e a ESQUERDA (x < xTankL)
+                // do reservatório, começando na altura da crista (yWSup + borda livre),
+                // com saias de terra conectando as bordas ao maciço.
+                // Encosta e saias terminam no limite esquerdo da barragem (xTankR)
+                const freeboard = Math.max(dMax * 0.8, 2);   // mesma borda livre da barragem
+                grp.add(organicMountainL(
+                    xTankL - tankW * 0.9, xTankR,                          // x0, x1 (x1 = limite esquerdo da barragem)
+                    -tankD - tankD * 1.3, -tankD,                          // z0, z1 (z1 = borda de FUNDO do tanque)
+                    yWSup + freeboard,                                     // yEdge: altura da crista do reservatório
+                    resDepthSup * 1.0,                                     // peak
+                    3.1));
+
+                // ── Segunda instância: montanha orgânica da LATERAL ESQUERDA ──
+                // Usa a MESMA função de altura da encosta em L (mesmos yEdge,
+                // peak, seed e runs) → emenda perfeitamente suave ao longo do
+                // plano z = −tankD. Cobre a montanha angular do maciço (perfil
+                // do terreno) que ficava acima da lateral esquerda do tanque.
+                (function () {
+                    const yEdge2 = yWSup + freeboard;
+                    const peak2 = resDepthSup * 1.0;
+                    const seed2 = 3.1;
+                    const runX2 = xTankR - (xTankL - tankW * 0.9);  // idêntico ao runX da encosta L
+                    const runZ2 = tankD * 1.3;                       // idêntico ao runZ da encosta L
+                    function n2b(px, pz) {
+                        return Math.sin(px * 0.012 + seed2) * Math.cos(pz * 0.010 + seed2 * 1.3)
+                            + 0.35 * Math.sin(px * 0.028 + seed2 * 2.1) * Math.sin(pz * 0.024 + seed2 * 0.7);
+                    }
+                    function heightAt2(x, z) {   // MESMA fórmula da encosta L
+                        const tZ = Math.min(Math.max((-tankD - z) / runZ2, 0), 1);
+                        const tX = Math.min(Math.max((xTankL - x) / runX2, 0), 1);
+                        const t = Math.max(tZ, tX);
+                        const along = (tZ >= tX) ? x : z;
+                        const rise = Math.pow(t, 0.9);
+                        const ridge = 0.88 + 0.12 * Math.sin(along * 0.006 + seed2 * 2.0);
+                        const rough = Math.min(Math.max(0.5 + 0.5 * n2b(x, z), 0), 1);
+                        let h = yEdge2 + peak2 * rise * ridge * (0.82 + 0.28 * rough);
+                        if (t < 0.05) h = yEdge2 + (h - yEdge2) * (t / 0.05);
+                        return h;
+                    }
+                    const x0 = xTankL - tankW * 1.8, x1 = xTankL;
+                    const z0 = -tankD, z1 = 0;   // da emenda com a encosta L até a face de corte
+                    const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, 56, 24);
+                    geo.rotateX(-Math.PI / 2);
+                    geo.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+                    const pos = geo.attributes.position;
+                    const colors = new Float32Array(pos.count * 3);
+                    const cVeg = new THREE.Color(0x6f8a5e);
+                    const cRock = new THREE.Color(0x8d7c66);
+                    const cHigh = new THREE.Color(0xa39a8b);
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i), z = pos.getZ(i);
+                        const h = heightAt2(x, z);
+                        pos.setY(i, h);
+                        const f = Math.min(Math.max((h - yEdge2) / peak2, 0), 1);
+                        const rough = Math.min(Math.max(0.5 + 0.5 * n2b(x, z), 0), 1);
+                        const c = cVeg.clone().lerp(cRock, Math.min(f * 1.4 + rough * 0.2, 1));
+                        if (f > 0.75) c.lerp(cHigh, ((f - 0.75) / 0.25) * 0.6);
+                        colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+                    }
+                    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+                    geo.computeVertexNormals();
+                    grp.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+                        vertexColors: true, roughness: 0.95, metalness: 0.0, flatShading: true,
+                    })));
+
+                    // Saias de terra: fecham os vãos entre a superfície e o maciço
+                    const skirtMat2 = new THREE.MeshStandardMaterial({
+                        color: 0x8d7c66, roughness: 0.95, metalness: 0.0, flatShading: true,
+                        side: THREE.DoubleSide,
+                    });
+                    function skirt2(pts, bottomFn) {
+                        const positions = [], indices = [];
+                        for (let i = 0; i < pts.length; i++) {
+                            const p = pts[i];
+                            positions.push(p.x, heightAt2(p.x, p.z), p.z);
+                            positions.push(p.x, bottomFn(p.x, p.z), p.z);
+                        }
+                        for (let i = 0; i < pts.length - 1; i++) {
+                            const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
+                            indices.push(a, b, c, b, d, c);
+                        }
+                        const g = new THREE.BufferGeometry();
+                        g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+                        g.setIndex(indices);
+                        g.computeVertexNormals();
+                        return new THREE.Mesh(g, skirtMat2);
+                    }
+                    // FRONTAL (z = 0): desce até o perfil do maciço (preserva o corte)
+                    const ptsFront = [];
+                    for (let i = 0; i <= 32; i++) ptsFront.push({ x: x0 + (x1 - x0) * i / 32, z: 0 });
+                    grp.add(skirt2(ptsFront, function (x) {
+                        return (x < profPts[0][0]) ? yTerrBase : profileAt(x).y - 2;
+                    }));
+                    // ESQUERDA (x = x0): desce até a base do maciço
+                    const ptsLeft = [];
+                    for (let i = 0; i <= 16; i++) ptsLeft.push({ x: x0, z: z0 + (z1 - z0) * i / 16 });
+                    grp.add(skirt2(ptsLeft, function () { return yTerrBase; }));
+                    // DIREITA (x = xTankL): desce até o fundo do reservatório (margem de terra)
+                    const ptsRight = [];
+                    for (let i = 0; i <= 16; i++) ptsRight.push({ x: x1, z: z0 + (z1 - z0) * i / 16 });
+                    grp.add(skirt2(ptsRight, function () { return yBotSup - 2; }));
+                })();
 
                 // Frente de vidro (efeito "aquário" do corte) + esqueleto
                 const glass = new THREE.Mesh(new THREE.PlaneGeometry(tankW, resDepthSup), glassMat);
